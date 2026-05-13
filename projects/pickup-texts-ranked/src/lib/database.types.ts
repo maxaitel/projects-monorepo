@@ -151,6 +151,30 @@ export interface Database {
           score_deltas: Json;
         }[];
       };
+      get_room_snapshot: {
+        Args: {
+          p_room_id: string;
+        };
+        Returns: {
+          phase: Database["public"]["Enums"]["room_phase"];
+          host_player_id: string;
+          connected_player_ids: string[];
+          turn_index: number;
+          max_turns: number;
+          submitted_player_ids: string[];
+          voted_player_ids: string[];
+        }[];
+      };
+      get_player_submission: {
+        Args: {
+          p_turn_id: string;
+          p_player_id: string;
+        };
+        Returns: {
+          submission_id: string;
+          body: string;
+        }[];
+      };
     };
     Enums: {
       room_phase: "lobby" | "prompt" | "submit" | "vote" | "reveal" | "recap";

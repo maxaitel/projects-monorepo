@@ -1195,6 +1195,100 @@ begin
 end;
 $$;
 
+create function public.get_player_submission(p_turn_id uuid, p_player_id uuid)
+returns table (
+  submission_id uuid,
+  body text
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select public.submissions.id, public.submissions.body
+  from public.submissions
+  where public.submissions.turn_id = p_turn_id
+    and public.submissions.player_id = p_player_id
+    and private.player_belongs_to_current_user(p_player_id)
+    and private.player_room_id(p_player_id) = private.turn_room_id(p_turn_id)
+  limit 1;
+$$;
+
+create function public.get_room_snapshot(p_room_id uuid)
+returns table (
+  phase public.room_phase,
+  host_player_id uuid,
+  connected_player_ids uuid[],
+  turn_index integer,
+  max_turns integer,
+  submitted_player_ids uuid[],
+  voted_player_ids uuid[]
+)
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not private.is_room_member(p_room_id) then
+    raise exception 'room not found';
+  end if;
+
+  return query
+  with room_info as (
+    select
+      public.rooms.phase,
+      public.rooms.host_player_id,
+      public.rooms.active_match_id,
+      coalesce(
+        (public.matches.settings->>'maxTurns')::integer,
+        (public.rooms.settings->>'maxTurns')::integer,
+        3
+      ) as max_turns
+    from public.rooms
+    left join public.matches on public.matches.id = public.rooms.active_match_id
+    where public.rooms.id = p_room_id
+  ),
+  latest_turn as (
+    select public.turns.id, public.turns.turn_index
+    from public.turns
+    join room_info on room_info.active_match_id = public.turns.match_id
+    order by public.turns.turn_index desc
+    limit 1
+  ),
+  connected_players as (
+    select coalesce(array_agg(public.players.id order by public.players.created_at), array[]::uuid[]) as ids
+    from public.players
+    where public.players.room_id = p_room_id
+      and public.players.connected = true
+      and public.players.kicked_at is null
+  ),
+  submitted_players as (
+    select coalesce(array_agg(public.submissions.player_id order by public.submissions.created_at), array[]::uuid[]) as ids
+    from public.submissions
+    join latest_turn on latest_turn.id = public.submissions.turn_id
+  ),
+  voted_players as (
+    select coalesce(array_agg(public.votes.voter_player_id order by public.votes.created_at), array[]::uuid[]) as ids
+    from public.votes
+    join latest_turn on latest_turn.id = public.votes.turn_id
+  )
+  select
+    room_info.phase,
+    room_info.host_player_id,
+    connected_players.ids,
+    coalesce(latest_turn.turn_index, 0),
+    room_info.max_turns,
+    submitted_players.ids,
+    voted_players.ids
+  from room_info
+  cross join connected_players
+  cross join submitted_players
+  cross join voted_players
+  left join latest_turn on true;
+end;
+$$;
+
 create index players_room_id_idx on public.players(room_id);
 create index players_user_id_idx on public.players(user_id);
 create index rooms_host_player_id_idx on public.rooms(host_player_id);
@@ -1302,6 +1396,14 @@ grant execute on function public.create_next_turn(uuid, text, text) to authentic
 revoke all on function public.resolve_turn(uuid) from public;
 revoke all on function public.resolve_turn(uuid) from anon;
 grant execute on function public.resolve_turn(uuid) to authenticated;
+
+revoke all on function public.get_player_submission(uuid, uuid) from public;
+revoke all on function public.get_player_submission(uuid, uuid) from anon;
+grant execute on function public.get_player_submission(uuid, uuid) to authenticated;
+
+revoke all on function public.get_room_snapshot(uuid) from public;
+revoke all on function public.get_room_snapshot(uuid) from anon;
+grant execute on function public.get_room_snapshot(uuid) to authenticated;
 
 create policy "room players can read rooms"
 on public.rooms for select to authenticated
