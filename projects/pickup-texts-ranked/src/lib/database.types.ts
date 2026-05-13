@@ -23,7 +23,32 @@ export interface Database {
       prompt_pack: Table;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      create_room: {
+        Args: {
+          p_room_code: string;
+          p_host_name: string;
+          p_host_avatar_color?: string;
+        };
+        Returns: {
+          room_id: string;
+          player_id: string;
+          room_code: string;
+        }[];
+      };
+      join_room: {
+        Args: {
+          p_room_code: string;
+          p_player_name: string;
+          p_player_avatar_color?: string;
+        };
+        Returns: {
+          room_id: string;
+          player_id: string;
+          room_code: string;
+        }[];
+      };
+    };
     Enums: {
       room_phase: "lobby" | "prompt" | "submit" | "vote" | "reveal" | "recap";
       room_status: "open" | "playing" | "finished";

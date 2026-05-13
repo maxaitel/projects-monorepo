@@ -123,21 +123,6 @@ insert into public.prompt_pack (id, prompt_text) values
   ('easter-shift', 'happy easter, does wednesday at 7 work?'),
   ('grocery-aisle', 'what''s your favorite aisle in the grocery store?');
 
-create function private.room_is_open(target_room_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select exists (
-    select 1
-    from rooms
-    where rooms.id = target_room_id
-      and rooms.status = 'open'
-  );
-$$;
-
 create function private.player_room_id(target_player_id uuid)
 returns uuid
 language sql
@@ -201,6 +186,25 @@ as $$
   from turns
   join matches on matches.id = turns.match_id
   where turns.id = target_turn_id;
+$$;
+
+create function private.turn_is_active_for_phase(target_turn_id uuid, expected_phase public.room_phase)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from turns
+    join matches on matches.id = turns.match_id
+    join rooms on rooms.id = matches.room_id
+    where turns.id = target_turn_id
+      and rooms.active_match_id = matches.id
+      and rooms.phase = expected_phase
+      and turns.phase = expected_phase
+  );
 $$;
 
 create function private.submission_turn_id(target_submission_id uuid)
@@ -285,12 +289,140 @@ begin
 end;
 $$;
 
+create function public.create_room(
+  p_room_code text,
+  p_host_name text,
+  p_host_avatar_color text default '#7c3aed'
+)
+returns table (
+  room_id uuid,
+  player_id uuid,
+  room_code text
+)
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  normalized_code text := upper(trim(p_room_code));
+  normalized_name text := trim(p_host_name);
+  normalized_color text := coalesce(nullif(trim(p_host_avatar_color), ''), '#7c3aed');
+  created_room_id uuid;
+  created_player_id uuid;
+begin
+  if current_user_id is null then
+    raise exception 'authentication required';
+  end if;
+
+  if normalized_code !~ '^[A-Z0-9]{4,8}$' then
+    raise exception 'invalid room code';
+  end if;
+
+  if char_length(normalized_name) not between 1 and 24 then
+    raise exception 'invalid display name';
+  end if;
+
+  insert into rooms (code, created_by)
+  values (normalized_code, current_user_id)
+  returning id into created_room_id;
+
+  insert into players (room_id, user_id, display_name, avatar_color)
+  values (created_room_id, current_user_id, normalized_name, normalized_color)
+  returning id into created_player_id;
+
+  update rooms
+  set host_player_id = created_player_id
+  where id = created_room_id;
+
+  room_id := created_room_id;
+  player_id := created_player_id;
+  room_code := normalized_code;
+  return next;
+end;
+$$;
+
+create function public.join_room(
+  p_room_code text,
+  p_player_name text,
+  p_player_avatar_color text default '#7c3aed'
+)
+returns table (
+  room_id uuid,
+  player_id uuid,
+  room_code text
+)
+language plpgsql
+security definer
+set search_path = public, private
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  normalized_code text := upper(trim(p_room_code));
+  normalized_name text := trim(p_player_name);
+  normalized_color text := coalesce(nullif(trim(p_player_avatar_color), ''), '#7c3aed');
+  target_room_id uuid;
+  existing_player_id uuid;
+  existing_kicked_at timestamptz;
+begin
+  if current_user_id is null then
+    raise exception 'authentication required';
+  end if;
+
+  if normalized_code !~ '^[A-Z0-9]{4,8}$' then
+    raise exception 'invalid room code';
+  end if;
+
+  if char_length(normalized_name) not between 1 and 24 then
+    raise exception 'invalid display name';
+  end if;
+
+  select rooms.id
+  into target_room_id
+  from rooms
+  where rooms.code = normalized_code
+    and rooms.status = 'open';
+
+  if target_room_id is null then
+    raise exception 'room not found';
+  end if;
+
+  select players.id, players.kicked_at
+  into existing_player_id, existing_kicked_at
+  from players
+  where players.room_id = target_room_id
+    and players.user_id = current_user_id;
+
+  if existing_player_id is not null then
+    if existing_kicked_at is not null then
+      raise exception 'player has been removed from this room';
+    end if;
+
+    update players
+    set display_name = normalized_name,
+        avatar_color = normalized_color,
+        connected = true
+    where players.id = existing_player_id
+    returning players.id into player_id;
+  else
+    insert into players (room_id, user_id, display_name, avatar_color)
+    values (target_room_id, current_user_id, normalized_name, normalized_color)
+    returning id into player_id;
+  end if;
+
+  room_id := target_room_id;
+  room_code := normalized_code;
+  return next;
+end;
+$$;
+
 create index players_room_id_idx on public.players(room_id);
 create index players_user_id_idx on public.players(user_id);
 create index rooms_host_player_id_idx on public.rooms(host_player_id);
 create index rooms_active_match_id_idx on public.rooms(active_match_id);
 create index matches_room_id_idx on public.matches(room_id);
 create index turns_match_id_idx on public.turns(match_id);
+create index turns_winning_submission_id_idx on public.turns(winning_submission_id);
 create index submissions_turn_id_idx on public.submissions(turn_id);
 create index submissions_player_id_idx on public.submissions(player_id);
 create index votes_turn_id_idx on public.votes(turn_id);
@@ -318,27 +450,31 @@ alter table public.room_events enable row level security;
 alter table public.prompt_pack enable row level security;
 
 grant usage on schema public to authenticated;
-grant select, insert, update on public.rooms to authenticated;
+grant select, update on public.rooms to authenticated;
 grant select on public.players to authenticated;
-grant insert (room_id, user_id, display_name, avatar_color, connected) on public.players to authenticated;
 grant update (display_name, avatar_color, connected, kicked_at, score) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
 grant select, insert, update on public.turns to authenticated;
-grant select, insert, update on public.submissions to authenticated;
-grant select, insert on public.votes to authenticated;
+grant select on public.submissions to authenticated;
+grant insert (turn_id, player_id, body, display_order) on public.submissions to authenticated;
+grant update (selected) on public.submissions to authenticated;
+grant select on public.votes to authenticated;
+grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
 grant select, insert on public.badges to authenticated;
 grant select, insert on public.room_events to authenticated;
 grant select on public.prompt_pack to authenticated;
 
-create policy "authenticated users can create rooms"
-on public.rooms for insert to authenticated
-with check (created_by = (select auth.uid()));
+revoke all on function public.create_room(text, text, text) from public;
+revoke all on function public.create_room(text, text, text) from anon;
+grant execute on function public.create_room(text, text, text) to authenticated;
+
+revoke all on function public.join_room(text, text, text) from public;
+revoke all on function public.join_room(text, text, text) from anon;
+grant execute on function public.join_room(text, text, text) to authenticated;
 
 create policy "room players can read rooms"
 on public.rooms for select to authenticated
 using (
-  status = 'open'
-  or
   created_by = (select auth.uid())
   or private.is_room_member(id)
 );
@@ -365,13 +501,6 @@ with check (
     active_match_id is null
     or private.match_room_id(active_match_id) = id
   )
-);
-
-create policy "authenticated users can join as themselves"
-on public.players for insert to authenticated
-with check (
-  user_id = (select auth.uid())
-  and private.room_is_open(room_id)
 );
 
 create policy "room players can read players"
@@ -447,6 +576,7 @@ on public.submissions for insert to authenticated
 with check (
   private.player_belongs_to_current_user(player_id)
   and private.player_room_id(player_id) = private.turn_room_id(turn_id)
+  and private.turn_is_active_for_phase(turn_id, 'submit')
 );
 
 create policy "host can update submissions"
@@ -468,6 +598,7 @@ on public.votes for insert to authenticated
 with check (
   private.player_belongs_to_current_user(voter_player_id)
   and private.player_room_id(voter_player_id) = private.turn_room_id(turn_id)
+  and private.turn_is_active_for_phase(turn_id, 'vote')
   and private.submission_turn_id(submission_id) = turn_id
   and private.submission_player_id(submission_id) <> voter_player_id
 );
