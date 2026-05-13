@@ -128,11 +128,11 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select players.room_id
-  from players
-  where players.id = target_player_id;
+  select public.players.room_id
+  from public.players
+  where public.players.id = target_player_id;
 $$;
 
 create function private.player_belongs_to_current_user(target_player_id uuid)
@@ -140,14 +140,14 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
-    from players
-    where players.id = target_player_id
-      and players.user_id = (select auth.uid())
-      and players.kicked_at is null
+    from public.players
+    where public.players.id = target_player_id
+      and public.players.user_id = (select auth.uid())
+      and public.players.kicked_at is null
   );
 $$;
 
@@ -156,11 +156,11 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select matches.room_id
-  from matches
-  where matches.id = target_match_id;
+  select public.matches.room_id
+  from public.matches
+  where public.matches.id = target_match_id;
 $$;
 
 create function private.turn_match_id(target_turn_id uuid)
@@ -168,11 +168,11 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select turns.match_id
-  from turns
-  where turns.id = target_turn_id;
+  select public.turns.match_id
+  from public.turns
+  where public.turns.id = target_turn_id;
 $$;
 
 create function private.turn_room_id(target_turn_id uuid)
@@ -180,12 +180,12 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select matches.room_id
-  from turns
-  join matches on matches.id = turns.match_id
-  where turns.id = target_turn_id;
+  select public.matches.room_id
+  from public.turns
+  join public.matches on public.matches.id = public.turns.match_id
+  where public.turns.id = target_turn_id;
 $$;
 
 create function private.turn_is_active_for_phase(target_turn_id uuid, expected_phase public.room_phase)
@@ -193,17 +193,62 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
-    from turns
-    join matches on matches.id = turns.match_id
-    join rooms on rooms.id = matches.room_id
-    where turns.id = target_turn_id
-      and rooms.active_match_id = matches.id
-      and rooms.phase = expected_phase
-      and turns.phase = expected_phase
+    from public.turns
+    join public.matches on public.matches.id = public.turns.match_id
+    join public.rooms on public.rooms.id = public.matches.room_id
+    where public.turns.id = target_turn_id
+      and public.rooms.active_match_id = public.matches.id
+      and public.rooms.phase = expected_phase
+      and public.turns.phase = expected_phase
+  );
+$$;
+
+create function private.turn_is_active(target_turn_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.turns
+    join public.matches on public.matches.id = public.turns.match_id
+    join public.rooms on public.rooms.id = public.matches.room_id
+    where public.turns.id = target_turn_id
+      and public.rooms.active_match_id = public.matches.id
+      and public.turns.turn_index = (
+        select max(active_turn.turn_index)
+        from public.turns active_turn
+        where active_turn.match_id = public.turns.match_id
+      )
+  );
+$$;
+
+create function private.turn_is_active_for_room_phase(target_turn_id uuid, expected_phase public.room_phase)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.turns
+    join public.matches on public.matches.id = public.turns.match_id
+    join public.rooms on public.rooms.id = public.matches.room_id
+    where public.turns.id = target_turn_id
+      and public.rooms.active_match_id = public.matches.id
+      and public.rooms.phase = expected_phase
+      and public.turns.turn_index = (
+        select max(active_turn.turn_index)
+        from public.turns active_turn
+        where active_turn.match_id = public.turns.match_id
+      )
   );
 $$;
 
@@ -212,11 +257,11 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select submissions.turn_id
-  from submissions
-  where submissions.id = target_submission_id;
+  select public.submissions.turn_id
+  from public.submissions
+  where public.submissions.id = target_submission_id;
 $$;
 
 create function private.submission_player_id(target_submission_id uuid)
@@ -224,11 +269,11 @@ returns uuid
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
-  select submissions.player_id
-  from submissions
-  where submissions.id = target_submission_id;
+  select public.submissions.player_id
+  from public.submissions
+  where public.submissions.id = target_submission_id;
 $$;
 
 create function private.is_room_member(target_room_id uuid)
@@ -236,14 +281,14 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
-    from players
-    where players.room_id = target_room_id
-      and players.user_id = (select auth.uid())
-      and players.kicked_at is null
+    from public.players
+    where public.players.room_id = target_room_id
+      and public.players.user_id = (select auth.uid())
+      and public.players.kicked_at is null
   );
 $$;
 
@@ -252,13 +297,13 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select exists (
     select 1
-    from rooms
-    join players host on host.id = rooms.host_player_id
-    where rooms.id = target_room_id
+    from public.rooms
+    join public.players host on host.id = public.rooms.host_player_id
+    where public.rooms.id = target_room_id
       and host.user_id = (select auth.uid())
       and host.kicked_at is null
   );
@@ -268,7 +313,7 @@ create function private.enforce_player_update_permissions()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   if new.id is distinct from old.id
@@ -323,15 +368,15 @@ begin
     raise exception 'invalid display name';
   end if;
 
-  insert into rooms (code, created_by)
+  insert into public.rooms (code, created_by)
   values (normalized_code, current_user_id)
   returning id into created_room_id;
 
-  insert into players (room_id, user_id, display_name, avatar_color)
+  insert into public.players (room_id, user_id, display_name, avatar_color)
   values (created_room_id, current_user_id, normalized_name, normalized_color)
   returning id into created_player_id;
 
-  update rooms
+  update public.rooms
   set host_player_id = created_player_id
   where id = created_room_id;
 
@@ -377,43 +422,43 @@ begin
     raise exception 'invalid display name';
   end if;
 
-  select rooms.id
+  select public.rooms.id
   into target_room_id
-  from rooms
-  where rooms.code = normalized_code;
+  from public.rooms
+  where public.rooms.code = normalized_code;
 
   if target_room_id is null then
     raise exception 'room not found';
   end if;
 
-  select players.id, players.kicked_at
+  select public.players.id, public.players.kicked_at
   into existing_player_id, existing_kicked_at
-  from players
-  where players.room_id = target_room_id
-    and players.user_id = current_user_id;
+  from public.players
+  where public.players.room_id = target_room_id
+    and public.players.user_id = current_user_id;
 
   if existing_kicked_at is not null then
     raise exception 'player has been removed from this room';
   end if;
 
   if existing_player_id is not null then
-    update players
+    update public.players
     set display_name = normalized_name,
         avatar_color = normalized_color,
         connected = true
-    where players.id = existing_player_id
-    returning players.id into player_id;
+    where public.players.id = existing_player_id
+    returning public.players.id into player_id;
   else
     if not exists (
       select 1
-      from rooms
-      where rooms.id = target_room_id
-        and rooms.status = 'open'
+      from public.rooms
+      where public.rooms.id = target_room_id
+        and public.rooms.status = 'open'
     ) then
       raise exception 'room is not open';
     end if;
 
-    insert into players (room_id, user_id, display_name, avatar_color)
+    insert into public.players (room_id, user_id, display_name, avatar_color)
     values (target_room_id, current_user_id, normalized_name, normalized_color)
     returning id into player_id;
   end if;
@@ -456,6 +501,16 @@ alter table public.votes enable row level security;
 alter table public.badges enable row level security;
 alter table public.room_events enable row level security;
 alter table public.prompt_pack enable row level security;
+
+revoke all privileges on table public.rooms from public, anon, authenticated;
+revoke all privileges on table public.players from public, anon, authenticated;
+revoke all privileges on table public.matches from public, anon, authenticated;
+revoke all privileges on table public.turns from public, anon, authenticated;
+revoke all privileges on table public.submissions from public, anon, authenticated;
+revoke all privileges on table public.votes from public, anon, authenticated;
+revoke all privileges on table public.badges from public, anon, authenticated;
+revoke all privileges on table public.room_events from public, anon, authenticated;
+revoke all privileges on table public.prompt_pack from public, anon, authenticated;
 
 grant usage on schema public to authenticated;
 grant select, update on public.rooms to authenticated;
@@ -541,12 +596,36 @@ using (private.is_room_member(room_id));
 
 create policy "room hosts can create matches"
 on public.matches for insert to authenticated
-with check (private.is_room_host(room_id));
+with check (
+  private.is_room_host(room_id)
+  and not exists (
+    select 1
+    from public.rooms
+    where public.rooms.id = matches.room_id
+      and public.rooms.active_match_id is not null
+  )
+);
 
 create policy "room hosts can update matches"
 on public.matches for update to authenticated
-using (private.is_room_host(room_id))
-with check (private.is_room_host(room_id));
+using (
+  private.is_room_host(room_id)
+  and exists (
+    select 1
+    from public.rooms
+    where public.rooms.id = matches.room_id
+      and public.rooms.active_match_id = matches.id
+  )
+)
+with check (
+  private.is_room_host(room_id)
+  and exists (
+    select 1
+    from public.rooms
+    where public.rooms.id = matches.room_id
+      and public.rooms.active_match_id = matches.id
+  )
+);
 
 create policy "room players can read turns"
 on public.turns for select to authenticated
@@ -566,9 +645,11 @@ create policy "room hosts can update turns"
 on public.turns for update to authenticated
 using (
   private.is_room_host(private.match_room_id(match_id))
+  and private.turn_is_active(id)
 )
 with check (
   private.is_room_host(private.match_room_id(match_id))
+  and private.turn_is_active(id)
   and (
     winning_submission_id is null
     or private.submission_turn_id(winning_submission_id) = id
@@ -591,9 +672,17 @@ create policy "host can update submissions"
 on public.submissions for update to authenticated
 using (
   private.is_room_host(private.turn_room_id(turn_id))
+  and (
+    private.turn_is_active_for_room_phase(turn_id, 'vote')
+    or private.turn_is_active_for_room_phase(turn_id, 'reveal')
+  )
 )
 with check (
   private.is_room_host(private.turn_room_id(turn_id))
+  and (
+    private.turn_is_active_for_room_phase(turn_id, 'vote')
+    or private.turn_is_active_for_room_phase(turn_id, 'reveal')
+  )
   and private.player_room_id(player_id) = private.turn_room_id(turn_id)
 );
 
