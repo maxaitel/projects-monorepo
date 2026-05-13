@@ -338,6 +338,43 @@ begin
 end;
 $$;
 
+create function private.enforce_turn_update_permissions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if new.id is distinct from old.id
+    or new.match_id is distinct from old.match_id
+    or new.turn_index is distinct from old.turn_index
+    or new.prompt_id is distinct from old.prompt_id
+    or new.prompt_text is distinct from old.prompt_text
+    or new.created_at is distinct from old.created_at then
+    raise exception 'turns immutable columns cannot be updated';
+  end if;
+
+  return new;
+end;
+$$;
+
+create function private.assign_submission_display_order()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  new.display_order := (
+    select coalesce(max(public.submissions.display_order), -1) + 1
+    from public.submissions
+    where public.submissions.turn_id = new.turn_id
+  );
+
+  return new;
+end;
+$$;
+
 create function public.create_room(
   p_room_code text,
   p_host_name text,
@@ -496,6 +533,16 @@ before update on public.players
 for each row
 execute function private.enforce_player_update_permissions();
 
+create trigger enforce_turn_update_permissions
+before update on public.turns
+for each row
+execute function private.enforce_turn_update_permissions();
+
+create trigger assign_submission_display_order
+before insert on public.submissions
+for each row
+execute function private.assign_submission_display_order();
+
 alter table public.rooms enable row level security;
 alter table public.players enable row level security;
 alter table public.matches enable row level security;
@@ -521,9 +568,10 @@ grant select, update on public.rooms to authenticated;
 grant select on public.players to authenticated;
 grant update (display_name, avatar_color, connected, kicked_at, score) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
-grant select, insert, update on public.turns to authenticated;
+grant select, insert on public.turns to authenticated;
+grant update (winning_submission_id, phase) on public.turns to authenticated;
 grant select on public.submissions to authenticated;
-grant insert (turn_id, player_id, body, display_order) on public.submissions to authenticated;
+grant insert (turn_id, player_id, body) on public.submissions to authenticated;
 grant update (selected) on public.submissions to authenticated;
 grant select on public.votes to authenticated;
 grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
