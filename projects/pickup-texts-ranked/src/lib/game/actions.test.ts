@@ -87,4 +87,37 @@ describe("createGameActions", () => {
     expect(repository.getRoomSnapshot).toHaveBeenCalledWith("room-1");
     expect(repository.startMatch).not.toHaveBeenCalled();
   });
+
+  it("rejects reveal while eligible voters are still missing", async () => {
+    const repository = createRepository({
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "vote",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host", "player-two"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host", "player-two"],
+        submittedPlayerIds: ["player-host", "player-two"],
+        requiredVoterIds: ["player-host", "player-two"],
+        votedPlayerIds: ["player-host"],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-1" }));
+
+    await expect(actions.revealTurn("room-1", "turn-1", "player-host")).rejects.toThrow(
+      "Waiting for 1 player to vote.",
+    );
+    expect(repository.getRoomSnapshot).toHaveBeenCalledWith("room-1");
+    expect(repository.revealTurn).not.toHaveBeenCalled();
+  });
+
+  it("rejects host self-kick", async () => {
+    const repository = createRepository();
+    const actions = createGameActions(repository, async () => ({ id: "user-1" }));
+
+    await expect(actions.kickPlayer("room-1", "player-host", "player-host")).rejects.toThrow(
+      "The host cannot be kicked.",
+    );
+    expect(repository.kickPlayer).not.toHaveBeenCalled();
+  });
 });

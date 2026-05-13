@@ -161,6 +161,7 @@ export interface Database {
           connected_player_ids: string[];
           turn_index: number;
           max_turns: number;
+          eligible_voter_ids: string[];
           submitted_player_ids: string[];
           voted_player_ids: string[];
         }[];

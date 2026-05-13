@@ -55,7 +55,11 @@ export function createGameActions(repository: GameRepository, getCurrentUser: Ge
       return repository.castVote({ turnId, voterPlayerId, submissionId });
     },
 
-    async revealTurn(turnId: string, hostPlayerId: string) {
+    async revealTurn(roomId: string, turnId: string, hostPlayerId: string) {
+      const snapshot = await repository.getRoomSnapshot(roomId);
+      assertActionAllowed(validateRoomAction(snapshot, hostPlayerId, "advance_phase"));
+      assertActionAllowed(canAdvancePhase(snapshot));
+
       return repository.revealTurn({ turnId, hostPlayerId });
     },
 
@@ -71,6 +75,10 @@ export function createGameActions(repository: GameRepository, getCurrentUser: Ge
     async kickPlayer(roomId: string, actorPlayerId: string, playerId: string) {
       const snapshot = await repository.getRoomSnapshot(roomId);
       assertActionAllowed(validateRoomAction(snapshot, actorPlayerId, "kick_player"));
+
+      if (playerId === snapshot.hostPlayerId) {
+        throw new Error("The host cannot be kicked.");
+      }
 
       return repository.kickPlayer({ roomId, hostPlayerId: actorPlayerId, playerId });
     },
@@ -111,10 +119,10 @@ export async function castVoteAction(
   return (await createServerGameActions()).castVote(turnId, voterPlayerId, submissionId);
 }
 
-export async function revealTurnAction(turnId: string, hostPlayerId: string) {
+export async function revealTurnAction(roomId: string, turnId: string, hostPlayerId: string) {
   "use server";
 
-  return (await createServerGameActions()).revealTurn(turnId, hostPlayerId);
+  return (await createServerGameActions()).revealTurn(roomId, turnId, hostPlayerId);
 }
 
 export async function advancePhaseAction(roomId: string, actorPlayerId: string) {

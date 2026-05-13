@@ -78,7 +78,7 @@ export function createSupabaseGameRepository(supabase: Supabase): GameRepository
         maxTurns: row.max_turns,
         requiredSubmitterIds: row.connected_player_ids,
         submittedPlayerIds: row.submitted_player_ids,
-        requiredVoterIds: row.connected_player_ids,
+        requiredVoterIds: row.eligible_voter_ids,
         votedPlayerIds: row.voted_player_ids,
       };
     },

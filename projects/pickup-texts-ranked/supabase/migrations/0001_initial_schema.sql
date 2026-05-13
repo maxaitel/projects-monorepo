@@ -335,6 +335,16 @@ begin
     raise exception 'only room hosts can update player moderation fields';
   end if;
 
+  if new.kicked_at is distinct from old.kicked_at
+    and exists (
+      select 1
+      from public.rooms
+      where public.rooms.id = old.room_id
+        and public.rooms.host_player_id = old.id
+    ) then
+    raise exception 'room host cannot be kicked';
+  end if;
+
   return new;
 end;
 $$;
@@ -840,6 +850,7 @@ as $$
 declare
   current_phase public.room_phase;
   current_match_id uuid;
+  latest_turn_id uuid;
   latest_turn_index integer;
   max_turns integer;
 begin
@@ -869,27 +880,41 @@ begin
     raise exception 'illegal room phase transition';
   end if;
 
-  select max(public.turns.turn_index)
-  into latest_turn_index
+  select public.turns.id, public.turns.turn_index
+  into latest_turn_id, latest_turn_index
   from public.turns
-  where public.turns.match_id = current_match_id;
+  where public.turns.match_id = current_match_id
+  order by public.turns.turn_index desc
+  limit 1;
 
-  if latest_turn_index is null then
+  if latest_turn_id is null then
     raise exception 'active match has no turns';
   end if;
 
-  if current_phase = 'submit' and p_next_phase = 'vote' and not exists (
-    select 1
-    from public.submissions
-    join public.turns on public.turns.id = public.submissions.turn_id
-    where public.turns.match_id = current_match_id
-      and public.turns.turn_index = (
-        select max(active_turn.turn_index)
-        from public.turns active_turn
-        where active_turn.match_id = current_match_id
-      )
-  ) then
-    raise exception 'cannot vote without submissions';
+  if current_phase = 'submit' and p_next_phase = 'vote' then
+    if exists (
+      select 1
+      from public.players
+      where public.players.room_id = p_room_id
+        and public.players.connected = true
+        and public.players.kicked_at is null
+        and not exists (
+          select 1
+          from public.submissions
+          where public.submissions.turn_id = latest_turn_id
+            and public.submissions.player_id = public.players.id
+        )
+    ) then
+      raise exception 'cannot vote until all connected players submit';
+    end if;
+
+    if not exists (
+      select 1
+      from public.submissions
+      where public.submissions.turn_id = latest_turn_id
+    ) then
+      raise exception 'cannot vote without submissions';
+    end if;
   end if;
 
   if current_phase = 'reveal' and p_next_phase = 'recap' then
@@ -1031,6 +1056,7 @@ as $$
 declare
   target_room_id uuid;
   target_match_id uuid;
+  target_room_phase public.room_phase;
   winner_submission_id uuid;
   winner_id uuid;
   top_vote_count integer;
@@ -1042,8 +1068,12 @@ declare
 begin
   perform pg_advisory_xact_lock(hashtextextended(p_turn_id::text, 1));
 
-  select private.turn_room_id(p_turn_id)
-  into target_room_id;
+  select public.matches.room_id, public.rooms.phase
+  into target_room_id, target_room_phase
+  from public.turns
+  join public.matches on public.matches.id = public.turns.match_id
+  join public.rooms on public.rooms.id = public.matches.room_id
+  where public.turns.id = p_turn_id;
 
   if target_room_id is null then
     raise exception 'turn not found';
@@ -1055,6 +1085,28 @@ begin
 
   if not private.turn_is_active_for_any_room_phase(p_turn_id, array['vote', 'reveal']::public.room_phase[]) then
     raise exception 'turn is not revealable';
+  end if;
+
+  if target_room_phase = 'vote' and exists (
+    select 1
+    from public.players eligible_voters
+    where eligible_voters.room_id = target_room_id
+      and eligible_voters.connected = true
+      and eligible_voters.kicked_at is null
+      and exists (
+        select 1
+        from public.submissions
+        where public.submissions.turn_id = p_turn_id
+          and public.submissions.player_id <> eligible_voters.id
+      )
+      and not exists (
+        select 1
+        from public.votes
+        where public.votes.turn_id = p_turn_id
+          and public.votes.voter_player_id = eligible_voters.id
+      )
+  ) then
+    raise exception 'cannot reveal until all eligible voters vote';
   end if;
 
   select public.turns.match_id, public.turns.winning_submission_id
@@ -1221,6 +1273,7 @@ returns table (
   connected_player_ids uuid[],
   turn_index integer,
   max_turns integer,
+  eligible_voter_ids uuid[],
   submitted_player_ids uuid[],
   voted_player_ids uuid[]
 )
@@ -1268,10 +1321,25 @@ begin
     from public.submissions
     join latest_turn on latest_turn.id = public.submissions.turn_id
   ),
+  eligible_voters as (
+    select coalesce(array_agg(public.players.id order by public.players.created_at), array[]::uuid[]) as ids
+    from public.players
+    join latest_turn on true
+    where public.players.room_id = p_room_id
+      and public.players.connected = true
+      and public.players.kicked_at is null
+      and exists (
+        select 1
+        from public.submissions
+        where public.submissions.turn_id = latest_turn.id
+          and public.submissions.player_id <> public.players.id
+      )
+  ),
   voted_players as (
     select coalesce(array_agg(public.votes.voter_player_id order by public.votes.created_at), array[]::uuid[]) as ids
     from public.votes
     join latest_turn on latest_turn.id = public.votes.turn_id
+    join eligible_voters on public.votes.voter_player_id = any(eligible_voters.ids)
   )
   select
     room_info.phase,
@@ -1279,10 +1347,12 @@ begin
     connected_players.ids,
     coalesce(latest_turn.turn_index, 0),
     room_info.max_turns,
+    eligible_voters.ids,
     submitted_players.ids,
     voted_players.ids
   from room_info
   cross join connected_players
+  cross join eligible_voters
   cross join submitted_players
   cross join voted_players
   left join latest_turn on true;
