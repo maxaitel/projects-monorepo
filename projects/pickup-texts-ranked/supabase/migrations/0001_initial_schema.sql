@@ -260,6 +260,31 @@ as $$
   );
 $$;
 
+create function private.enforce_player_update_permissions()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.id is distinct from old.id
+    or new.room_id is distinct from old.room_id
+    or new.user_id is distinct from old.user_id
+    or new.created_at is distinct from old.created_at then
+    raise exception 'players immutable columns cannot be updated';
+  end if;
+
+  if (
+    new.score is distinct from old.score
+    or new.kicked_at is distinct from old.kicked_at
+  ) and not private.is_room_host(old.room_id) then
+    raise exception 'only room hosts can update player moderation fields';
+  end if;
+
+  return new;
+end;
+$$;
+
 create index players_room_id_idx on public.players(room_id);
 create index players_user_id_idx on public.players(user_id);
 create index rooms_host_player_id_idx on public.rooms(host_player_id);
@@ -277,6 +302,11 @@ create index badges_player_id_idx on public.badges(player_id);
 create index room_events_room_id_idx on public.room_events(room_id, created_at desc);
 create index room_events_actor_player_id_idx on public.room_events(actor_player_id);
 
+create trigger enforce_player_update_permissions
+before update on public.players
+for each row
+execute function private.enforce_player_update_permissions();
+
 alter table public.rooms enable row level security;
 alter table public.players enable row level security;
 alter table public.matches enable row level security;
@@ -291,7 +321,7 @@ grant usage on schema public to authenticated;
 grant select, insert, update on public.rooms to authenticated;
 grant select on public.players to authenticated;
 grant insert (room_id, user_id, display_name, avatar_color, connected) on public.players to authenticated;
-grant update (display_name, avatar_color, connected) on public.players to authenticated;
+grant update (display_name, avatar_color, connected, kicked_at, score) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
 grant select, insert, update on public.turns to authenticated;
 grant select, insert, update on public.submissions to authenticated;
@@ -351,15 +381,21 @@ using (
   or private.is_room_member(room_id)
 );
 
-create policy "players can update themselves"
+create policy "players and hosts can update players"
 on public.players for update to authenticated
 using (
-  user_id = (select auth.uid())
-  and kicked_at is null
+  (
+    user_id = (select auth.uid())
+    and kicked_at is null
+  )
+  or private.is_room_host(room_id)
 )
 with check (
-  user_id = (select auth.uid())
-  and kicked_at is null
+  (
+    user_id = (select auth.uid())
+    and kicked_at is null
+  )
+  or private.is_room_host(room_id)
 );
 
 create policy "room players can read matches"
