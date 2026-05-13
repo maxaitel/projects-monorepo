@@ -48,6 +48,20 @@ export interface Database {
           room_code: string;
         }[];
       };
+      start_match: {
+        Args: {
+          p_room_id: string;
+          p_prompt_id?: string | null;
+          p_prompt_text?: string | null;
+        };
+        Returns: {
+          room_id: string;
+          match_id: string;
+          turn_id: string;
+          status: Database["public"]["Enums"]["room_status"];
+          phase: Database["public"]["Enums"]["room_phase"];
+        }[];
+      };
       activate_match: {
         Args: {
           p_room_id: string;

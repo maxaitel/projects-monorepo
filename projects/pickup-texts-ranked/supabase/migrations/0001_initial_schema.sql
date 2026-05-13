@@ -609,6 +609,91 @@ as $$
   order by public.submissions.display_order;
 $$;
 
+create function public.start_match(
+  p_room_id uuid,
+  p_prompt_id text default null,
+  p_prompt_text text default null
+)
+returns table (
+  room_id uuid,
+  match_id uuid,
+  turn_id uuid,
+  status public.room_status,
+  phase public.room_phase
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  created_match_id uuid;
+  created_turn_id uuid;
+  selected_prompt_id text;
+  selected_prompt_text text;
+begin
+  if not private.is_room_host(p_room_id) then
+    raise exception 'only room hosts can start matches';
+  end if;
+
+  perform 1
+  from public.rooms
+  where public.rooms.id = p_room_id
+    and public.rooms.status = 'open'
+    and public.rooms.phase = 'lobby'
+    and public.rooms.active_match_id is null
+  for update;
+
+  if not found then
+    raise exception 'room is not ready to start';
+  end if;
+
+  if p_prompt_id is not null and p_prompt_text is not null then
+    selected_prompt_id := p_prompt_id;
+    selected_prompt_text := p_prompt_text;
+  else
+    select public.prompt_pack.id, public.prompt_pack.prompt_text
+    into selected_prompt_id, selected_prompt_text
+    from public.prompt_pack
+    where public.prompt_pack.enabled = true
+    order by random()
+    limit 1;
+  end if;
+
+  if selected_prompt_id is null or selected_prompt_text is null then
+    raise exception 'prompt is required';
+  end if;
+
+  insert into public.matches (room_id, settings)
+  select p_room_id, public.rooms.settings
+  from public.rooms
+  where public.rooms.id = p_room_id
+  returning public.matches.id into created_match_id;
+
+  insert into public.turns (match_id, turn_index, prompt_id, prompt_text)
+  values (created_match_id, 0, selected_prompt_id, selected_prompt_text)
+  returning public.turns.id into created_turn_id;
+
+  update public.rooms
+  set status = 'playing',
+      phase = 'prompt',
+      active_match_id = created_match_id
+  where public.rooms.id = p_room_id
+    and public.rooms.status = 'open'
+    and public.rooms.phase = 'lobby'
+    and public.rooms.active_match_id is null
+  returning public.rooms.id, public.rooms.status, public.rooms.phase
+  into room_id, status, phase;
+
+  if room_id is null then
+    raise exception 'room start raced with another update';
+  end if;
+
+  match_id := created_match_id;
+  turn_id := created_turn_id;
+  return next;
+end;
+$$;
+
 create function public.activate_match(p_room_id uuid, p_match_id uuid)
 returns table (
   room_id uuid,
@@ -625,14 +710,15 @@ begin
     raise exception 'only room hosts can activate matches';
   end if;
 
-  if not exists (
-    select 1
-    from public.rooms
-    where public.rooms.id = p_room_id
-      and public.rooms.status = 'open'
-      and public.rooms.phase = 'lobby'
-      and public.rooms.active_match_id is null
-  ) then
+  perform 1
+  from public.rooms
+  where public.rooms.id = p_room_id
+    and public.rooms.status = 'open'
+    and public.rooms.phase = 'lobby'
+    and public.rooms.active_match_id is null
+  for update;
+
+  if not found then
     raise exception 'room is not ready to start';
   end if;
 
@@ -659,8 +745,15 @@ begin
       phase = 'prompt',
       active_match_id = p_match_id
   where public.rooms.id = p_room_id
+    and public.rooms.status = 'open'
+    and public.rooms.phase = 'lobby'
+    and public.rooms.active_match_id is null
   returning public.rooms.id, public.rooms.active_match_id, public.rooms.status, public.rooms.phase
   into room_id, active_match_id, status, phase;
+
+  if room_id is null then
+    raise exception 'room activation raced with another update';
+  end if;
 
   return next;
 end;
@@ -960,8 +1053,7 @@ grant select on public.rooms to authenticated;
 grant select on public.players to authenticated;
 grant update (display_name, avatar_color, connected, kicked_at) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
-grant select, insert on public.turns to authenticated;
-grant update (phase) on public.turns to authenticated;
+grant select on public.turns to authenticated;
 grant insert (turn_id, player_id, body) on public.submissions to authenticated;
 grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
 grant select on public.badges to authenticated;
@@ -987,6 +1079,10 @@ grant execute on function public.list_reveal_submissions(uuid) to authenticated;
 revoke all on function public.list_vote_counts(uuid) from public;
 revoke all on function public.list_vote_counts(uuid) from anon;
 grant execute on function public.list_vote_counts(uuid) to authenticated;
+
+revoke all on function public.start_match(uuid, text, text) from public;
+revoke all on function public.start_match(uuid, text, text) from anon;
+grant execute on function public.start_match(uuid, text, text) to authenticated;
 
 revoke all on function public.activate_match(uuid, uuid) from public;
 revoke all on function public.activate_match(uuid, uuid) from anon;
