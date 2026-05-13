@@ -46,7 +46,7 @@ export function HomeScreen({ onCreateRoom, onJoinRoom }: HomeScreenProps) {
         Display name
         <input
           className={inputClass}
-          maxLength={32}
+          maxLength={24}
           onChange={(event) => setDisplayName(event.target.value)}
           placeholder="Mina"
           value={displayName}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { HomeScreen } from "./home-screen";
@@ -17,7 +17,11 @@ describe("game screens", () => {
 
     render(<HomeScreen onCreateRoom={onCreateRoom} onJoinRoom={onJoinRoom} />);
 
-    await user.type(screen.getByLabelText(/display name/i), "Mina");
+    const displayNameInput = screen.getByLabelText(/display name/i);
+
+    expect(displayNameInput).toHaveAttribute("maxlength", "24");
+
+    await user.type(displayNameInput, "Mina");
     await user.click(screen.getByRole("button", { name: /create room/i }));
 
     expect(onCreateRoom).toHaveBeenCalledWith("Mina");
@@ -53,6 +57,24 @@ describe("game screens", () => {
     expect(onStart).toHaveBeenCalledOnce();
   });
 
+  it("marks the explicit host when the host is not first in the lobby", () => {
+    render(
+      <LobbyScreen
+        code="K9M2"
+        hostPlayerId="p2"
+        isHost
+        onStart={vi.fn()}
+        players={[
+          { id: "p1", name: "Mina" },
+          { id: "p2", name: "Jules" },
+        ]}
+      />,
+    );
+
+    expect(within(screen.getByText("Jules").closest("li")!).getByLabelText("Host")).toBeInTheDocument();
+    expect(within(screen.getByText("Mina").closest("li")!).queryByLabelText("Host")).not.toBeInTheDocument();
+  });
+
   it("renders a growing text thread message", () => {
     render(
       <ThreadView
@@ -80,6 +102,21 @@ describe("game screens", () => {
     expect(onSubmit).toHaveBeenCalledWith("meet me by the group chat");
   });
 
+  it("preserves a rejected async reply and surfaces an accessible error", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockRejectedValue(new Error("network failed"));
+
+    render(<SubmitPhase disabled={false} onSubmit={onSubmit} />);
+
+    const replyInput = screen.getByLabelText(/reply/i);
+
+    await user.type(replyInput, "  meet me by the group chat  ");
+    await user.click(screen.getByRole("button", { name: /submit reply/i }));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/could not submit/i));
+    expect(replyInput).toHaveValue("  meet me by the group chat  ");
+  });
+
   it("casts a vote for an anonymous reply", async () => {
     const user = userEvent.setup();
     const onVote = vi.fn();
@@ -97,6 +134,30 @@ describe("game screens", () => {
     await user.click(screen.getByRole("button", { name: /vote for reply 1/i }));
 
     expect(onVote).toHaveBeenCalledWith("s1");
+  });
+
+  it("prevents duplicate votes once a reply has been selected", async () => {
+    const user = userEvent.setup();
+    const onVote = vi.fn();
+
+    render(
+      <VotePhase
+        onVote={onVote}
+        submissions={[
+          { id: "s1", body: "your read receipts have great timing" },
+          { id: "s2", body: "hey lol, formal edition" },
+        ]}
+        votedSubmissionId="s1"
+      />,
+    );
+
+    expect(screen.getAllByText(/selected/i).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: /vote for reply 1/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /vote for reply 2/i })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /vote for reply 2/i }));
+
+    expect(onVote).not.toHaveBeenCalled();
   });
 
   it("reveals the winning author and badges", async () => {
