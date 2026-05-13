@@ -35,6 +35,13 @@ type SubmissionRow = {
   body: string;
   authorPlayerId: string | null;
   selected?: boolean;
+  voteCount?: number;
+};
+
+type BadgeRow = {
+  player_id: string;
+  badge_type: string;
+  reason: string;
 };
 
 export type RoomView = {
@@ -49,8 +56,14 @@ export type RoomView = {
   hasVoted: boolean;
   players: Array<{ id: string; name: string; score: number; isHost: boolean }>;
   messages: Array<{ id: string; side: "you" | "them"; body: string; badge?: string }>;
-  submissions: Array<{ id: string; body: string; authorPlayerId: string | null }>;
-  selectedSubmission: { id: string; body: string; authorName: string } | null;
+  submissions: Array<{ id: string; body: string; authorPlayerId: string | null; voteCount?: number }>;
+  selectedSubmission: {
+    id: string;
+    body: string;
+    authorName: string;
+    badges: string[];
+    voteCount: number | null;
+  } | null;
 };
 
 type MapRoomViewRows = {
@@ -59,6 +72,7 @@ type MapRoomViewRows = {
   players: PlayerRow[];
   turns: TurnRow[];
   submissions: SubmissionRow[];
+  badges?: BadgeRow[];
   votedPlayerIds?: string[];
 };
 
@@ -74,6 +88,14 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
     activePlayers.find((player) => player.user_id === rows.currentUserId)?.id ?? null;
   const latestTurn = rows.turns.at(-1) ?? null;
   const authorNames = new Map(players.map((player) => [player.id, player.name]));
+  const badgesByPlayerId = new Map<string, string[]>();
+
+  for (const badge of rows.badges ?? []) {
+    const existing = badgesByPlayerId.get(badge.player_id) ?? [];
+    existing.push(formatBadgeType(badge.badge_type));
+    badgesByPlayerId.set(badge.player_id, existing);
+  }
+
   const selectedSubmission = findSelectedSubmission(rows.submissions, latestTurn);
   const messages: RoomView["messages"] = [];
 
@@ -126,12 +148,17 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
       id: submission.id,
       body: submission.body,
       authorPlayerId: submission.authorPlayerId,
+      ...(typeof submission.voteCount === "number" ? { voteCount: submission.voteCount } : {}),
     })),
     selectedSubmission: selectedSubmission
       ? {
           id: selectedSubmission.id,
           body: selectedSubmission.body,
           authorName: authorNames.get(selectedSubmission.authorPlayerId ?? "") ?? "Unknown",
+          badges: selectedSubmission.authorPlayerId
+            ? badgesByPlayerId.get(selectedSubmission.authorPlayerId) ?? []
+            : [],
+          voteCount: selectedSubmission.voteCount ?? null,
         }
       : null,
   };
@@ -182,6 +209,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
         currentPlayerId: currentPlayerId ? String(currentPlayerId) : null,
       })
     : [];
+  const badges = latestTurn ? await loadBadges(supabase, latestTurn.id) : [];
   const votedPlayerIds =
     room.active_match_id && currentPlayerId ? await loadVotedPlayerIds(supabase, String(room.id)) : [];
 
@@ -204,6 +232,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
     })),
     turns,
     submissions,
+    badges,
     votedPlayerIds,
   });
 }
@@ -301,6 +330,24 @@ async function loadRevealSubmissions(supabase: Supabase, turnId: string): Promis
     body: String(submission.body),
     authorPlayerId: String(submission.player_id),
     selected: Boolean(submission.selected),
+    voteCount: Number(submission.vote_count),
+  }));
+}
+
+async function loadBadges(supabase: Supabase, turnId: string): Promise<BadgeRow[]> {
+  const { data, error } = await supabase
+    .from("badges")
+    .select("player_id, badge_type, reason")
+    .eq("turn_id", turnId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((badge) => ({
+    player_id: String(badge.player_id),
+    badge_type: String(badge.badge_type),
+    reason: String(badge.reason),
   }));
 }
 
@@ -338,4 +385,8 @@ async function loadVotedPlayerIds(supabase: Supabase, roomId: string): Promise<s
   }
 
   return (data?.[0]?.voted_player_ids ?? []).map(String);
+}
+
+function formatBadgeType(type: string): string {
+  return type.replaceAll("_", " ");
 }

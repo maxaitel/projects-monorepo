@@ -9,6 +9,7 @@ import { RoomClient } from "./room-client";
 const actionMocks = vi.hoisted(() => ({
   advancePhaseAction: vi.fn(),
   castVoteAction: vi.fn(),
+  kickPlayerAction: vi.fn(),
   revealTurnAction: vi.fn(),
   startMatchAction: vi.fn(),
   submitMessageAction: vi.fn(),
@@ -236,6 +237,29 @@ describe("RoomClient", () => {
       "room-1",
       "turn-1",
       "player-host",
+    );
+  });
+
+  it("lets the host remove a missing non-host player", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RoomClient
+        initialRoom={createRoom({
+          currentPlayerId: "player-host",
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /remove tavi/i }));
+
+    await waitFor(() =>
+      expect(actionMocks.kickPlayerAction).toHaveBeenCalledWith(
+        "ABCD",
+        "room-1",
+        "player-host",
+        "player-other",
+      ),
     );
   });
 });

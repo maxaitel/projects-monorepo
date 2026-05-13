@@ -48,3 +48,14 @@ export async function advancePhaseAction(code: string, roomId: string, playerId:
   revalidatePath(`/room/${code}`);
   return result;
 }
+
+export async function kickPlayerAction(
+  code: string,
+  roomId: string,
+  hostPlayerId: string,
+  playerId: string,
+) {
+  const result = await actions.kickPlayerAction(roomId, hostPlayerId, playerId);
+  revalidatePath(`/room/${code}`);
+  return result;
+}

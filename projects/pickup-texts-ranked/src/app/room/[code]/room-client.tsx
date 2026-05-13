@@ -15,6 +15,7 @@ import { useRoomRealtime } from "@/lib/game/use-room-realtime";
 import {
   advancePhaseAction,
   castVoteAction,
+  kickPlayerAction,
   revealTurnAction,
   startMatchAction,
   submitMessageAction,
@@ -152,6 +153,19 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
     });
   }
 
+  function kickPlayer(playerId: string) {
+    const hostPlayerId = initialRoom.currentPlayerId;
+    if (!isHost || !hostPlayerId) {
+      setError("Only the host can remove players.");
+      return;
+    }
+
+    runAction(async () => {
+      await kickPlayerAction(initialRoom.code, initialRoom.roomId, hostPlayerId, playerId);
+      router.refresh();
+    });
+  }
+
   return (
     <main className="mx-auto grid min-h-dvh w-full max-w-5xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:py-6">
       <section className="grid content-start gap-4">
@@ -241,7 +255,7 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
           initialRoom.selectedSubmission ? (
             <RevealPhase
               authorName={initialRoom.selectedSubmission.authorName}
-              badges={[]}
+              badges={initialRoom.selectedSubmission.badges}
               isHost={isHost}
               onContinue={advancePhase}
               winningBody={initialRoom.selectedSubmission.body}
@@ -251,6 +265,12 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
           )
         ) : null}
         {phase === "recap" ? <RecapScreen scores={initialRoom.players} /> : null}
+        <PlayerRecoveryPanel
+          disabled={isActionPending}
+          isHost={isHost}
+          onKick={kickPlayer}
+          players={initialRoom.players}
+        />
         {error ? <RoomActionError message={error} /> : null}
       </aside>
     </main>
@@ -296,6 +316,55 @@ function StatusPanel({ message }: { message: string }) {
   return (
     <section className="rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-300" role="status">
       {message}
+    </section>
+  );
+}
+
+function PlayerRecoveryPanel({
+  disabled,
+  isHost,
+  onKick,
+  players,
+}: {
+  disabled: boolean;
+  isHost: boolean;
+  onKick: (playerId: string) => void;
+  players: RoomView["players"];
+}) {
+  const removablePlayers = players.filter((player) => !player.isHost);
+
+  return (
+    <section className="grid gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50">
+      <div>
+        <h2 className="text-sm font-semibold">Players</h2>
+        <p className="text-xs text-zinc-400">
+          {isHost ? "Remove missing players to keep the round moving." : "Waiting players stay listed here."}
+        </p>
+      </div>
+      <ul className="grid gap-2">
+        {players.map((player) => (
+          <li
+            className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm"
+            key={player.id}
+          >
+            <span className="truncate">{player.name}</span>
+            {player.isHost ? <span className="text-xs text-amber-300">Host</span> : null}
+            {isHost && !player.isHost ? (
+              <button
+                className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={disabled}
+                onClick={() => onKick(player.id)}
+                type="button"
+              >
+                Remove {player.name}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {isHost && removablePlayers.length === 0 ? (
+        <p className="text-xs text-zinc-400">No removable players.</p>
+      ) : null}
     </section>
   );
 }

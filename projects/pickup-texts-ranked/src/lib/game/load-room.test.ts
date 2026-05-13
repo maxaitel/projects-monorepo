@@ -225,6 +225,14 @@ describe("mapRoomView", () => {
           body: "free after 8, emotionally available after snacks",
           authorPlayerId: "player-two",
           selected: true,
+          voteCount: 2,
+        },
+      ],
+      badges: [
+        {
+          player_id: "player-two",
+          badge_type: "photo_finish",
+          reason: "Won a tied vote by photo finish.",
         },
       ],
     });
@@ -242,6 +250,8 @@ describe("mapRoomView", () => {
       id: "submission-win",
       body: "free after 8, emotionally available after snacks",
       authorName: "Jules",
+      badges: ["photo finish"],
+      voteCount: 2,
     });
     expect(room.hasSubmitted).toBe(true);
     expect(room.currentPlayerSubmissionId).toBe("submission-win");

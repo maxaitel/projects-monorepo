@@ -109,6 +109,64 @@ create table public.room_events (
   created_at timestamptz not null default now()
 );
 
+create function private.emit_submission_room_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  target_room_id uuid;
+begin
+  select public.matches.room_id
+  into target_room_id
+  from public.turns
+  join public.matches on public.matches.id = public.turns.match_id
+  where public.turns.id = new.turn_id;
+
+  if target_room_id is not null then
+    insert into public.room_events (room_id, actor_player_id, event_type, payload)
+    values (
+      target_room_id,
+      null,
+      'submission_progress',
+      jsonb_build_object('turnId', new.turn_id)
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
+create function private.emit_vote_room_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  target_room_id uuid;
+begin
+  select public.matches.room_id
+  into target_room_id
+  from public.turns
+  join public.matches on public.matches.id = public.turns.match_id
+  where public.turns.id = new.turn_id;
+
+  if target_room_id is not null then
+    insert into public.room_events (room_id, actor_player_id, event_type, payload)
+    values (
+      target_room_id,
+      null,
+      'vote_progress',
+      jsonb_build_object('turnId', new.turn_id)
+    );
+  end if;
+
+  return new;
+end;
+$$;
+
 create table public.prompt_pack (
   id text primary key,
   prompt_text text not null,
@@ -1391,6 +1449,16 @@ create trigger assign_submission_display_order
 before insert on public.submissions
 for each row
 execute function private.assign_submission_display_order();
+
+create trigger emit_submission_room_event
+after insert on public.submissions
+for each row
+execute function private.emit_submission_room_event();
+
+create trigger emit_vote_room_event
+after insert on public.votes
+for each row
+execute function private.emit_vote_room_event();
 
 alter table public.rooms enable row level security;
 alter table public.players enable row level security;

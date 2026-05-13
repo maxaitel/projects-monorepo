@@ -1,6 +1,6 @@
 import { loadRoomByCode } from "@/lib/game/load-room";
-import { notFound } from "next/navigation";
 
+import { RoomJoinClient } from "./join-client";
 import { RoomClient } from "./room-client";
 
 type RoomPageProps = {
@@ -11,10 +11,11 @@ type RoomPageProps = {
 
 export default async function RoomPage({ params }: RoomPageProps) {
   const { code } = await params;
-  const room = await loadRoomByCode(code.toUpperCase());
+  const normalizedCode = code.toUpperCase();
+  const room = await loadRoomByCode(normalizedCode);
 
   if (!room) {
-    notFound();
+    return <RoomJoinClient code={normalizedCode} />;
   }
 
   return <RoomClient initialRoom={room} key={`${room.roomId}:${room.phase}:${room.currentTurnId ?? ""}`} />;

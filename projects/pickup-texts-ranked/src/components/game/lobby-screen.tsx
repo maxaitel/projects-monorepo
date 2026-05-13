@@ -1,6 +1,7 @@
 "use client";
 
-import { Crown, Play } from "lucide-react";
+import { Copy, Crown, Play } from "lucide-react";
+import { useState } from "react";
 
 type LobbyPlayer = {
   id: string;
@@ -17,12 +18,32 @@ type LobbyScreenProps = {
 };
 
 export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps) {
+  const [copied, setCopied] = useState(false);
+  const invitePath = `/room/${code}`;
+
+  async function copyInviteLink() {
+    const origin = typeof window === "undefined" ? "" : window.location.origin;
+    await navigator.clipboard?.writeText(`${origin}${invitePath}`);
+    setCopied(true);
+  }
+
   return (
     <section className="mx-auto grid w-full max-w-lg gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Room code</p>
           <p className="font-mono text-3xl font-bold tracking-[0.18em]">{code}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs text-zinc-400">{invitePath}</span>
+            <button
+              className="inline-flex h-8 items-center gap-1 rounded-md border border-zinc-700 px-2 text-xs text-zinc-200 transition hover:bg-zinc-800"
+              onClick={() => void copyInviteLink()}
+              type="button"
+            >
+              <Copy aria-hidden="true" size={14} />
+              {copied ? "Copied" : "Copy link"}
+            </button>
+          </div>
         </div>
         {isHost ? (
           <button
