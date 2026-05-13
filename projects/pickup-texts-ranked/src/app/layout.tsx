@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Pickup Texts Ranked",
-  description: "A remote party game for ranking pickup text replies with friends.",
+  description: "A remote party game for unhinged pickup text threads.",
 };
 
 export default function RootLayout({
