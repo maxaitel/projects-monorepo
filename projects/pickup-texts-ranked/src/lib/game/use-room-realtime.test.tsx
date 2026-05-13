@@ -68,4 +68,25 @@ describe("useRoomRealtime", () => {
     unmount();
     expect(client.removeChannel).toHaveBeenCalledWith(channel);
   });
+
+  it("keeps the latest callback without resubscribing", () => {
+    const firstOnChange = vi.fn();
+    const secondOnChange = vi.fn();
+
+    const { rerender } = renderHook(({ onChange }) => useRoomRealtime("room-1", onChange), {
+      initialProps: { onChange: firstOnChange },
+    });
+
+    expect(client.channel).toHaveBeenCalledOnce();
+
+    rerender({ onChange: secondOnChange });
+
+    expect(client.channel).toHaveBeenCalledOnce();
+
+    const firstHandler = channel.on.mock.calls[0][2] as () => void;
+    firstHandler();
+
+    expect(firstOnChange).not.toHaveBeenCalled();
+    expect(secondOnChange).toHaveBeenCalledOnce();
+  });
 });

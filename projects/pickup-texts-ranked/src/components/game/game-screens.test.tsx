@@ -32,6 +32,24 @@ describe("game screens", () => {
     expect(onJoinRoom).toHaveBeenCalledWith({ displayName: "Mina", code: "ABCD" });
   });
 
+  it("shows placeholder callback errors without crashing the home screen", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <HomeScreen
+        onCreateRoom={() => {
+          throw new Error("Create room action wiring lands in the next step.");
+        }}
+        onJoinRoom={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/display name/i), "Mina");
+    await user.click(screen.getByRole("button", { name: /create room/i }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("Create room action wiring lands in the next step.");
+  });
+
   it("shows the room code and host start control in the lobby", async () => {
     const user = userEvent.setup();
     const onStart = vi.fn();

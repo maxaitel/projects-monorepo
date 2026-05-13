@@ -17,6 +17,7 @@ const buttonClass =
 export function HomeScreen({ onCreateRoom, onJoinRoom }: HomeScreenProps) {
   const [displayName, setDisplayName] = useState("");
   const [roomCode, setRoomCode] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
   const trimmedName = displayName.trim();
   const normalizedCode = roomCode.trim().toUpperCase();
@@ -24,14 +25,24 @@ export function HomeScreen({ onCreateRoom, onJoinRoom }: HomeScreenProps) {
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (trimmedName) {
-      onCreateRoom(trimmedName);
+      runPlaceholderSafe(() => onCreateRoom(trimmedName));
     }
   }
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (trimmedName && normalizedCode) {
-      onJoinRoom({ displayName: trimmedName, code: normalizedCode });
+      runPlaceholderSafe(() => onJoinRoom({ displayName: trimmedName, code: normalizedCode }));
+    }
+  }
+
+  function runPlaceholderSafe(callback: () => void) {
+    setMessage(null);
+
+    try {
+      callback();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "This action is not wired yet.");
     }
   }
 
@@ -41,6 +52,12 @@ export function HomeScreen({ onCreateRoom, onJoinRoom }: HomeScreenProps) {
         <h1 className="text-xl font-semibold">Pickup Texts Ranked</h1>
         <p className="text-sm text-zinc-400">Set your name, then host or enter a room.</p>
       </div>
+
+      {message ? (
+        <p className="rounded-md border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100" role="status">
+          {message}
+        </p>
+      ) : null}
 
       <label className="grid gap-2 text-sm font-medium text-zinc-200">
         Display name
