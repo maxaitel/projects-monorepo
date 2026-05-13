@@ -70,6 +70,9 @@ describe("mapRoomView", () => {
       ],
       submissions: [],
       selectedSubmission: null,
+      hasSubmitted: false,
+      currentPlayerSubmissionId: null,
+      hasVoted: false,
     });
   });
 
@@ -109,6 +112,75 @@ describe("mapRoomView", () => {
       { id: "player-host", name: "Mina", score: 35, isHost: true },
     ]);
     expect(room.currentPlayerId).toBeNull();
+  });
+
+  it("marks the current player's submission and vote status for active voting", () => {
+    const room = mapRoomView({
+      currentUserId: "user-2",
+      votedPlayerIds: ["player-two"],
+      room: {
+        id: "room-1",
+        code: "ABCD",
+        phase: "vote",
+        host_player_id: "player-host",
+        active_match_id: "match-1",
+      },
+      players: [
+        {
+          id: "player-host",
+          user_id: "user-1",
+          display_name: "Mina",
+          score: 35,
+          kicked_at: null,
+          created_at: "2026-05-14T00:00:00.000Z",
+        },
+        {
+          id: "player-two",
+          user_id: "user-2",
+          display_name: "Jules",
+          score: 22,
+          kicked_at: null,
+          created_at: "2026-05-14T00:01:00.000Z",
+        },
+      ],
+      turns: [
+        {
+          id: "turn-1",
+          turn_index: 0,
+          prompt_text: "wyd tonight?",
+          winning_submission_id: null,
+        },
+      ],
+      submissions: [
+        {
+          id: "submission-current",
+          body: "my own reply",
+          authorPlayerId: "player-two",
+        },
+        {
+          id: "submission-anonymous",
+          body: "anonymous reply",
+          authorPlayerId: null,
+        },
+      ],
+    });
+
+    expect(room.currentTurnId).toBe("turn-1");
+    expect(room.hasSubmitted).toBe(true);
+    expect(room.currentPlayerSubmissionId).toBe("submission-current");
+    expect(room.hasVoted).toBe(true);
+    expect(room.submissions).toEqual([
+      {
+        id: "submission-current",
+        body: "my own reply",
+        authorPlayerId: "player-two",
+      },
+      {
+        id: "submission-anonymous",
+        body: "anonymous reply",
+        authorPlayerId: null,
+      },
+    ]);
   });
 
   it("maps selected winning submission into messages", () => {
@@ -171,6 +243,8 @@ describe("mapRoomView", () => {
       body: "free after 8, emotionally available after snacks",
       authorName: "Jules",
     });
+    expect(room.hasSubmitted).toBe(true);
+    expect(room.currentPlayerSubmissionId).toBe("submission-win");
   });
 });
 

@@ -44,6 +44,9 @@ export type RoomView = {
   hostPlayerId: string | null;
   currentPlayerId: string | null;
   currentTurnId: string | null;
+  hasSubmitted: boolean;
+  currentPlayerSubmissionId: string | null;
+  hasVoted: boolean;
   players: Array<{ id: string; name: string; score: number; isHost: boolean }>;
   messages: Array<{ id: string; side: "you" | "them"; body: string; badge?: string }>;
   submissions: Array<{ id: string; body: string; authorPlayerId: string | null }>;
@@ -56,6 +59,7 @@ type MapRoomViewRows = {
   players: PlayerRow[];
   turns: TurnRow[];
   submissions: SubmissionRow[];
+  votedPlayerIds?: string[];
 };
 
 export function mapRoomView(rows: MapRoomViewRows): RoomView {
@@ -85,6 +89,7 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
   const currentPlayerSubmission = rows.submissions.find(
     (submission) => submission.authorPlayerId !== null && submission.authorPlayerId === currentPlayerId,
   );
+  const currentPlayerSubmissionId = currentPlayerSubmission?.id ?? null;
 
   if (currentPlayerSubmission && currentPlayerSubmission.id !== selectedSubmission?.id) {
     messages.push({
@@ -111,6 +116,10 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
     hostPlayerId: rows.room.host_player_id,
     currentPlayerId,
     currentTurnId: latestTurn?.id ?? null,
+    hasSubmitted: currentPlayerSubmissionId !== null,
+    currentPlayerSubmissionId,
+    hasVoted:
+      currentPlayerId !== null && (rows.votedPlayerIds ?? []).includes(currentPlayerId),
     players,
     messages,
     submissions: rows.submissions.map((submission) => ({
@@ -173,6 +182,8 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
         currentPlayerId: currentPlayerId ? String(currentPlayerId) : null,
       })
     : [];
+  const votedPlayerIds =
+    room.active_match_id && currentPlayerId ? await loadVotedPlayerIds(supabase, String(room.id)) : [];
 
   return mapRoomView({
     currentUserId: user?.id ?? null,
@@ -193,6 +204,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
     })),
     turns,
     submissions,
+    votedPlayerIds,
   });
 }
 
@@ -316,4 +328,14 @@ async function loadCurrentPlayerSubmission(
     body: String(row.body),
     authorPlayerId: currentPlayerId,
   };
+}
+
+async function loadVotedPlayerIds(supabase: Supabase, roomId: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc("get_room_snapshot", { p_room_id: roomId });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data?.[0]?.voted_player_ids ?? []).map(String);
 }
