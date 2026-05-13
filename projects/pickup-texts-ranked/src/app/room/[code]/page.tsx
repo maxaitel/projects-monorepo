@@ -9,5 +9,5 @@ type RoomPageProps = {
 export default async function RoomPage({ params }: RoomPageProps) {
   const { code } = await params;
 
-  return <RoomClient code={code.toUpperCase()} />;
+  return <RoomClient code={code.toUpperCase()} roomId={null} />;
 }

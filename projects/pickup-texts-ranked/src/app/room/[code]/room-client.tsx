@@ -14,6 +14,7 @@ type Phase = "lobby" | "submit" | "vote" | "reveal" | "recap";
 
 type RoomClientProps = {
   code: string;
+  roomId: string | null;
 };
 
 const players = [
@@ -41,13 +42,13 @@ const phaseLabels: Record<Phase, string> = {
   recap: "Recap",
 };
 
-export function RoomClient({ code }: RoomClientProps) {
+export function RoomClient({ code, roomId }: RoomClientProps) {
   const [phase, setPhase] = useState<Phase>("lobby");
   const [submittedReply, setSubmittedReply] = useState<string | null>(null);
   const [votedSubmissionId, setVotedSubmissionId] = useState<string | null>(null);
   const refetch = useCallback(() => {}, []);
 
-  useRoomRealtime(null, refetch);
+  useRoomRealtime(roomId, refetch);
 
   const visibleSubmissions = submittedReply
     ? [{ id: "local", body: submittedReply }, ...submissions]
