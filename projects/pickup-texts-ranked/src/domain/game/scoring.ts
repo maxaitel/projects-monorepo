@@ -5,6 +5,8 @@ export function resolveTurn(submissions: SubmissionResult[]): TurnResolution {
     throw new Error("Cannot resolve a turn without submissions.");
   }
 
+  validateUniqueIds(submissions);
+
   const sorted = [...submissions].sort((a, b) => {
     if (b.votes !== a.votes) return b.votes - a.votes;
     return a.displayOrder - b.displayOrder;
@@ -14,7 +16,9 @@ export function resolveTurn(submissions: SubmissionResult[]): TurnResolution {
   const topVoteCount = winner.votes;
   const tiedWinners = sorted.filter((submission) => submission.votes === topVoteCount);
   const lowestVoteCount = Math.min(...submissions.map((submission) => submission.votes));
-  const lowest = sorted.findLast((submission) => submission.votes === lowestVoteCount);
+  const lowestSubmissions = sorted.filter(
+    (submission) => submission.votes === lowestVoteCount && submission.playerId !== winner.playerId,
+  );
 
   const badges: BadgeAward[] = [];
   if (tiedWinners.length > 1) {
@@ -31,18 +35,21 @@ export function resolveTurn(submissions: SubmissionResult[]): TurnResolution {
     });
   }
 
-  if (lowest && lowest.playerId !== winner.playerId && submissions.length > 2) {
-    badges.push({
-      playerId: lowest.playerId,
-      type: "questionable",
-      reason: "Lowest vote count this turn.",
-    });
+  if (submissions.length > 2) {
+    badges.push(
+      ...lowestSubmissions.map((submission) => ({
+        playerId: submission.playerId,
+        type: "questionable" as const,
+        reason: "Lowest vote count this turn.",
+      })),
+    );
   }
 
+  const lowestPlayerIds = new Set(lowestSubmissions.map((submission) => submission.playerId));
   const scoreDeltas = Object.fromEntries(
     submissions.map((submission) => [
       submission.playerId,
-      getScoreDelta(submission, winner, tiedWinners.length > 1, lowest, submissions.length),
+      getScoreDelta(submission, winner, tiedWinners.length > 1, lowestPlayerIds, submissions.length),
     ]),
   );
 
@@ -53,18 +60,35 @@ export function resolveTurn(submissions: SubmissionResult[]): TurnResolution {
   };
 }
 
+function validateUniqueIds(submissions: SubmissionResult[]): void {
+  const playerIds = new Set<string>();
+  const submissionIds = new Set<string>();
+
+  for (const submission of submissions) {
+    if (playerIds.has(submission.playerId)) {
+      throw new Error(`Cannot resolve a turn with duplicate playerId: ${submission.playerId}.`);
+    }
+    playerIds.add(submission.playerId);
+
+    if (submissionIds.has(submission.submissionId)) {
+      throw new Error(`Cannot resolve a turn with duplicate submissionId: ${submission.submissionId}.`);
+    }
+    submissionIds.add(submission.submissionId);
+  }
+}
+
 function getScoreDelta(
   submission: SubmissionResult,
   winner: SubmissionResult,
   isTiedWin: boolean,
-  lowest: SubmissionResult | undefined,
+  lowestPlayerIds: Set<string>,
   submissionCount: number,
 ): number {
   if (submission.playerId === winner.playerId) {
     return isTiedWin ? 25 : 35;
   }
 
-  if (submissionCount > 2 && lowest?.playerId === submission.playerId) {
+  if (submissionCount > 2 && lowestPlayerIds.has(submission.playerId)) {
     return -5;
   }
 
