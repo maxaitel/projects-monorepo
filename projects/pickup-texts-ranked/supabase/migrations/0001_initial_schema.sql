@@ -203,7 +203,11 @@ as $$
     where public.turns.id = target_turn_id
       and public.rooms.active_match_id = public.matches.id
       and public.rooms.phase = expected_phase
-      and public.turns.phase = expected_phase
+      and public.turns.turn_index = (
+        select max(active_turn.turn_index)
+        from public.turns active_turn
+        where active_turn.match_id = public.turns.match_id
+      )
   );
 $$;
 
