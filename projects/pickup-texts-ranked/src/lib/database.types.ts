@@ -80,6 +80,17 @@ export interface Database {
           vote_count: number;
         }[];
       };
+      mark_winning_submission: {
+        Args: {
+          p_turn_id: string;
+          p_submission_id: string;
+        };
+        Returns: {
+          submission_id: string;
+          turn_id: string;
+          selected: boolean;
+        }[];
+      };
     };
     Enums: {
       room_phase: "lobby" | "prompt" | "submit" | "vote" | "reveal" | "recap";

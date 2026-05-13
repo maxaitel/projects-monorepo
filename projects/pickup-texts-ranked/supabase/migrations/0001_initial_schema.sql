@@ -609,6 +609,59 @@ as $$
   order by public.submissions.display_order;
 $$;
 
+create function public.mark_winning_submission(p_turn_id uuid, p_submission_id uuid)
+returns table (
+  submission_id uuid,
+  turn_id uuid,
+  selected boolean
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  target_room_id uuid;
+begin
+  select private.turn_room_id(p_turn_id)
+  into target_room_id;
+
+  if target_room_id is null then
+    raise exception 'turn not found';
+  end if;
+
+  if not private.is_room_host(target_room_id) then
+    raise exception 'only room hosts can select a winning submission';
+  end if;
+
+  if not private.turn_is_active_for_any_room_phase(p_turn_id, array['vote', 'reveal']::public.room_phase[]) then
+    raise exception 'turn is not revealable';
+  end if;
+
+  if not exists (
+    select 1
+    from public.submissions
+    where public.submissions.id = p_submission_id
+      and public.submissions.turn_id = p_turn_id
+  ) then
+    raise exception 'submission is not part of the turn';
+  end if;
+
+  update public.submissions
+  set selected = false
+  where public.submissions.turn_id = p_turn_id
+    and public.submissions.id <> p_submission_id;
+
+  update public.submissions
+  set selected = true
+  where public.submissions.id = p_submission_id
+    and public.submissions.turn_id = p_turn_id
+  returning public.submissions.id, public.submissions.turn_id, public.submissions.selected
+  into submission_id, turn_id, selected;
+
+  return next;
+end;
+$$;
+
 create index players_room_id_idx on public.players(room_id);
 create index players_user_id_idx on public.players(user_id);
 create index rooms_host_player_id_idx on public.rooms(host_player_id);
@@ -695,6 +748,10 @@ grant execute on function public.list_reveal_submissions(uuid) to authenticated;
 revoke all on function public.list_vote_counts(uuid) from public;
 revoke all on function public.list_vote_counts(uuid) from anon;
 grant execute on function public.list_vote_counts(uuid) to authenticated;
+
+revoke all on function public.mark_winning_submission(uuid, uuid) from public;
+revoke all on function public.mark_winning_submission(uuid, uuid) from anon;
+grant execute on function public.mark_winning_submission(uuid, uuid) to authenticated;
 
 create policy "room players can read rooms"
 on public.rooms for select to authenticated
