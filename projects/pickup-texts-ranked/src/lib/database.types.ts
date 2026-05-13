@@ -130,6 +130,17 @@ export interface Database {
           vote_count: number;
         }[];
       };
+      cast_vote: {
+        Args: {
+          p_turn_id: string;
+          p_voter_player_id: string;
+          p_submission_id: string;
+        };
+        Returns: {
+          vote_id: string;
+          submission_id: string;
+        }[];
+      };
       resolve_turn: {
         Args: {
           p_turn_id: string;

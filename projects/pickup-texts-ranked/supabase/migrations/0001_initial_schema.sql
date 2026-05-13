@@ -610,6 +610,74 @@ as $$
   order by public.submissions.display_order;
 $$;
 
+create function public.cast_vote(
+  p_turn_id uuid,
+  p_voter_player_id uuid,
+  p_submission_id uuid
+)
+returns table (
+  vote_id uuid,
+  submission_id uuid
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  target_room_id uuid;
+  inserted_vote_id uuid;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_turn_id::text, 1));
+
+  select public.matches.room_id
+  into target_room_id
+  from public.turns
+  join public.matches on public.matches.id = public.turns.match_id
+  join public.rooms on public.rooms.id = public.matches.room_id
+  where public.turns.id = p_turn_id
+    and public.rooms.active_match_id = public.matches.id
+    and public.rooms.phase = 'vote'
+    and public.turns.winning_submission_id is null
+    and public.turns.turn_index = (
+      select max(active_turn.turn_index)
+      from public.turns active_turn
+      where active_turn.match_id = public.turns.match_id
+    )
+  for update of turns;
+
+  if target_room_id is null then
+    raise exception 'turn is not votable';
+  end if;
+
+  if not private.player_belongs_to_current_user(p_voter_player_id) then
+    raise exception 'voter does not belong to current user';
+  end if;
+
+  if private.player_room_id(p_voter_player_id) <> target_room_id then
+    raise exception 'voter is not in the turn room';
+  end if;
+
+  if not exists (
+    select 1
+    from public.submissions
+    where public.submissions.id = p_submission_id
+      and public.submissions.turn_id = p_turn_id
+      and private.player_room_id(public.submissions.player_id) = target_room_id
+      and public.submissions.player_id <> p_voter_player_id
+  ) then
+    raise exception 'submission is not votable';
+  end if;
+
+  insert into public.votes (turn_id, voter_player_id, submission_id)
+  values (p_turn_id, p_voter_player_id, p_submission_id)
+  returning public.votes.id into inserted_vote_id;
+
+  vote_id := inserted_vote_id;
+  submission_id := p_submission_id;
+  return next;
+end;
+$$;
+
 create function public.start_match(
   p_room_id uuid,
   p_prompt_id text default null,
@@ -772,16 +840,22 @@ as $$
 declare
   current_phase public.room_phase;
   current_match_id uuid;
+  latest_turn_index integer;
+  max_turns integer;
 begin
   if not private.is_room_host(p_room_id) then
     raise exception 'only room hosts can advance room phase';
   end if;
 
-  select public.rooms.phase, public.rooms.active_match_id
-  into current_phase, current_match_id
+  select
+    public.rooms.phase,
+    public.rooms.active_match_id,
+    coalesce((public.matches.settings->>'maxTurns')::integer, (public.rooms.settings->>'maxTurns')::integer, 3)
+  into current_phase, current_match_id, max_turns
   from public.rooms
+  left join public.matches on public.matches.id = public.rooms.active_match_id
   where public.rooms.id = p_room_id
-  for update;
+  for update of rooms;
 
   if current_match_id is null then
     raise exception 'room has no active match';
@@ -793,6 +867,15 @@ begin
     or (current_phase = 'reveal' and p_next_phase = 'recap')
   ) then
     raise exception 'illegal room phase transition';
+  end if;
+
+  select max(public.turns.turn_index)
+  into latest_turn_index
+  from public.turns
+  where public.turns.match_id = current_match_id;
+
+  if latest_turn_index is null then
+    raise exception 'active match has no turns';
   end if;
 
   if current_phase = 'submit' and p_next_phase = 'vote' and not exists (
@@ -807,6 +890,22 @@ begin
       )
   ) then
     raise exception 'cannot vote without submissions';
+  end if;
+
+  if current_phase = 'reveal' and p_next_phase = 'recap' then
+    if latest_turn_index + 1 < max_turns then
+      raise exception 'cannot recap before max turns';
+    end if;
+
+    if not exists (
+      select 1
+      from public.turns
+      where public.turns.match_id = current_match_id
+        and public.turns.turn_index = latest_turn_index
+        and public.turns.winning_submission_id is not null
+    ) then
+      raise exception 'cannot recap before resolving the latest turn';
+    end if;
   end if;
 
   update public.rooms
@@ -839,6 +938,7 @@ declare
   current_match_id uuid;
   latest_turn_id uuid;
   latest_turn_index integer;
+  max_turns integer;
   selected_prompt_id text;
   selected_prompt_text text;
 begin
@@ -846,14 +946,17 @@ begin
     raise exception 'only room hosts can create turns';
   end if;
 
-  select public.rooms.active_match_id
-  into current_match_id
+  select
+    public.rooms.active_match_id,
+    coalesce((public.matches.settings->>'maxTurns')::integer, (public.rooms.settings->>'maxTurns')::integer, 3)
+  into current_match_id, max_turns
   from public.rooms
+  join public.matches on public.matches.id = public.rooms.active_match_id
   where public.rooms.id = p_room_id
     and public.rooms.status = 'playing'
     and public.rooms.phase = 'reveal'
     and public.rooms.active_match_id is not null
-  for update;
+  for update of rooms;
 
   if current_match_id is null then
     raise exception 'room is not ready for the next turn';
@@ -878,6 +981,10 @@ begin
       and public.turns.winning_submission_id is not null
   ) then
     raise exception 'latest turn is not resolved';
+  end if;
+
+  if latest_turn_index + 1 >= max_turns then
+    raise exception 'match has reached max turns; advance to recap';
   end if;
 
   if p_prompt_id is not null and p_prompt_text is not null then
@@ -1148,7 +1255,6 @@ grant update (display_name, avatar_color, connected, kicked_at) on public.player
 grant select on public.matches to authenticated;
 grant select on public.turns to authenticated;
 grant insert (turn_id, player_id, body) on public.submissions to authenticated;
-grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
 grant select on public.badges to authenticated;
 grant select on public.room_events to authenticated;
 grant select on public.prompt_pack to authenticated;
@@ -1172,6 +1278,10 @@ grant execute on function public.list_reveal_submissions(uuid) to authenticated;
 revoke all on function public.list_vote_counts(uuid) from public;
 revoke all on function public.list_vote_counts(uuid) from anon;
 grant execute on function public.list_vote_counts(uuid) to authenticated;
+
+revoke all on function public.cast_vote(uuid, uuid, uuid) from public;
+revoke all on function public.cast_vote(uuid, uuid, uuid) from anon;
+grant execute on function public.cast_vote(uuid, uuid, uuid) to authenticated;
 
 revoke all on function public.start_match(uuid, text, text) from public;
 revoke all on function public.start_match(uuid, text, text) from anon;
