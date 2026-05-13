@@ -39,12 +39,11 @@ describe("game screens", () => {
     render(
       <LobbyScreen
         code="K9M2"
-        hostPlayerId="p1"
         isHost
         onStart={onStart}
         players={[
-          { id: "p1", name: "Mina" },
-          { id: "p2", name: "Jules" },
+          { id: "p1", name: "Mina", isHost: true },
+          { id: "p2", name: "Jules", isHost: false },
         ]}
       />,
     );
@@ -62,12 +61,11 @@ describe("game screens", () => {
     render(
       <LobbyScreen
         code="K9M2"
-        hostPlayerId="p2"
         isHost
         onStart={vi.fn()}
         players={[
-          { id: "p1", name: "Mina" },
-          { id: "p2", name: "Jules" },
+          { id: "p1", name: "Mina", isHost: false },
+          { id: "p2", name: "Jules", isHost: true },
         ]}
       />,
     );

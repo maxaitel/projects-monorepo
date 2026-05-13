@@ -5,18 +5,18 @@ import { Crown, Play } from "lucide-react";
 type LobbyPlayer = {
   id: string;
   name: string;
+  isHost: boolean;
   score?: number;
 };
 
 type LobbyScreenProps = {
   code: string;
   players: LobbyPlayer[];
-  hostPlayerId: string;
   isHost: boolean;
   onStart: () => void;
 };
 
-export function LobbyScreen({ code, players, hostPlayerId, isHost, onStart }: LobbyScreenProps) {
+export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps) {
   return (
     <section className="mx-auto grid w-full max-w-lg gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -51,7 +51,7 @@ export function LobbyScreen({ code, players, hostPlayerId, isHost, onStart }: Lo
               {typeof player.score === "number" ? (
                 <span className="font-mono text-xs text-cyan-300">{player.score}</span>
               ) : null}
-              {player.id === hostPlayerId ? (
+              {player.isHost ? (
                 <Crown aria-label="Host" className="text-amber-300" size={17} />
               ) : null}
             </span>
