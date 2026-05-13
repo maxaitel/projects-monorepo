@@ -301,7 +301,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public, private
+set search_path = public, pg_temp
 as $$
 declare
   current_user_id uuid := auth.uid();
@@ -354,7 +354,7 @@ returns table (
 )
 language plpgsql
 security definer
-set search_path = public, private
+set search_path = public, pg_temp
 as $$
 declare
   current_user_id uuid := auth.uid();
@@ -380,8 +380,7 @@ begin
   select rooms.id
   into target_room_id
   from rooms
-  where rooms.code = normalized_code
-    and rooms.status = 'open';
+  where rooms.code = normalized_code;
 
   if target_room_id is null then
     raise exception 'room not found';
@@ -393,11 +392,11 @@ begin
   where players.room_id = target_room_id
     and players.user_id = current_user_id;
 
-  if existing_player_id is not null then
-    if existing_kicked_at is not null then
-      raise exception 'player has been removed from this room';
-    end if;
+  if existing_kicked_at is not null then
+    raise exception 'player has been removed from this room';
+  end if;
 
+  if existing_player_id is not null then
     update players
     set display_name = normalized_name,
         avatar_color = normalized_color,
@@ -405,6 +404,15 @@ begin
     where players.id = existing_player_id
     returning players.id into player_id;
   else
+    if not exists (
+      select 1
+      from rooms
+      where rooms.id = target_room_id
+        and rooms.status = 'open'
+    ) then
+      raise exception 'room is not open';
+    end if;
+
     insert into players (room_id, user_id, display_name, avatar_color)
     values (target_room_id, current_user_id, normalized_name, normalized_color)
     returning id into player_id;
