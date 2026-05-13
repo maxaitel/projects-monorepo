@@ -39,6 +39,7 @@ describe("game screens", () => {
     render(
       <LobbyScreen
         code="K9M2"
+        hostPlayerId="p1"
         isHost
         onStart={onStart}
         players={[

@@ -11,14 +11,12 @@ type LobbyPlayer = {
 type LobbyScreenProps = {
   code: string;
   players: LobbyPlayer[];
-  hostPlayerId?: string;
+  hostPlayerId: string;
   isHost: boolean;
   onStart: () => void;
 };
 
 export function LobbyScreen({ code, players, hostPlayerId, isHost, onStart }: LobbyScreenProps) {
-  const resolvedHostPlayerId = hostPlayerId ?? players[0]?.id;
-
   return (
     <section className="mx-auto grid w-full max-w-lg gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -53,7 +51,7 @@ export function LobbyScreen({ code, players, hostPlayerId, isHost, onStart }: Lo
               {typeof player.score === "number" ? (
                 <span className="font-mono text-xs text-cyan-300">{player.score}</span>
               ) : null}
-              {player.id === resolvedHostPlayerId ? (
+              {player.id === hostPlayerId ? (
                 <Crown aria-label="Host" className="text-amber-300" size={17} />
               ) : null}
             </span>
