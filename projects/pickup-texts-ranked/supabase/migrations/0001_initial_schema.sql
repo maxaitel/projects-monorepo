@@ -609,6 +609,122 @@ as $$
   order by public.submissions.display_order;
 $$;
 
+create function public.activate_match(p_room_id uuid, p_match_id uuid)
+returns table (
+  room_id uuid,
+  active_match_id uuid,
+  status public.room_status,
+  phase public.room_phase
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if not private.is_room_host(p_room_id) then
+    raise exception 'only room hosts can activate matches';
+  end if;
+
+  if not exists (
+    select 1
+    from public.rooms
+    where public.rooms.id = p_room_id
+      and public.rooms.status = 'open'
+      and public.rooms.phase = 'lobby'
+      and public.rooms.active_match_id is null
+  ) then
+    raise exception 'room is not ready to start';
+  end if;
+
+  if not exists (
+    select 1
+    from public.matches
+    where public.matches.id = p_match_id
+      and public.matches.room_id = p_room_id
+  ) then
+    raise exception 'match does not belong to room';
+  end if;
+
+  if not exists (
+    select 1
+    from public.turns
+    where public.turns.match_id = p_match_id
+      and public.turns.turn_index = 0
+  ) then
+    raise exception 'match requires an initial turn';
+  end if;
+
+  update public.rooms
+  set status = 'playing',
+      phase = 'prompt',
+      active_match_id = p_match_id
+  where public.rooms.id = p_room_id
+  returning public.rooms.id, public.rooms.active_match_id, public.rooms.status, public.rooms.phase
+  into room_id, active_match_id, status, phase;
+
+  return next;
+end;
+$$;
+
+create function public.advance_room_phase(p_room_id uuid, p_next_phase public.room_phase)
+returns table (
+  room_id uuid,
+  phase public.room_phase
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  current_phase public.room_phase;
+  current_match_id uuid;
+begin
+  if not private.is_room_host(p_room_id) then
+    raise exception 'only room hosts can advance room phase';
+  end if;
+
+  select public.rooms.phase, public.rooms.active_match_id
+  into current_phase, current_match_id
+  from public.rooms
+  where public.rooms.id = p_room_id
+  for update;
+
+  if current_match_id is null then
+    raise exception 'room has no active match';
+  end if;
+
+  if not (
+    (current_phase = 'prompt' and p_next_phase = 'submit')
+    or (current_phase = 'submit' and p_next_phase = 'vote')
+    or (current_phase = 'reveal' and p_next_phase in ('prompt', 'recap'))
+  ) then
+    raise exception 'illegal room phase transition';
+  end if;
+
+  if current_phase = 'submit' and p_next_phase = 'vote' and not exists (
+    select 1
+    from public.submissions
+    join public.turns on public.turns.id = public.submissions.turn_id
+    where public.turns.match_id = current_match_id
+      and public.turns.turn_index = (
+        select max(active_turn.turn_index)
+        from public.turns active_turn
+        where active_turn.match_id = current_match_id
+      )
+  ) then
+    raise exception 'cannot vote without submissions';
+  end if;
+
+  update public.rooms
+  set phase = p_next_phase
+  where public.rooms.id = p_room_id
+  returning public.rooms.id, public.rooms.phase
+  into room_id, phase;
+
+  return next;
+end;
+$$;
+
 create function public.resolve_turn(p_turn_id uuid)
 returns table (
   winning_submission_id uuid,
@@ -631,6 +747,8 @@ declare
   existing_winning_submission_id uuid;
   deltas jsonb;
 begin
+  perform pg_advisory_xact_lock(hashtextextended(p_turn_id::text, 1));
+
   select private.turn_room_id(p_turn_id)
   into target_room_id;
 
@@ -649,7 +767,8 @@ begin
   select public.turns.match_id, public.turns.winning_submission_id
   into target_match_id, existing_winning_submission_id
   from public.turns
-  where public.turns.id = p_turn_id;
+  where public.turns.id = p_turn_id
+  for update;
 
   if existing_winning_submission_id is not null then
     select public.submissions.player_id
@@ -837,7 +956,7 @@ revoke all privileges on table public.room_events from public, anon, authenticat
 revoke all privileges on table public.prompt_pack from public, anon, authenticated;
 
 grant usage on schema public to authenticated;
-grant select, update on public.rooms to authenticated;
+grant select on public.rooms to authenticated;
 grant select on public.players to authenticated;
 grant update (display_name, avatar_color, connected, kicked_at) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
@@ -868,6 +987,14 @@ grant execute on function public.list_reveal_submissions(uuid) to authenticated;
 revoke all on function public.list_vote_counts(uuid) from public;
 revoke all on function public.list_vote_counts(uuid) from anon;
 grant execute on function public.list_vote_counts(uuid) to authenticated;
+
+revoke all on function public.activate_match(uuid, uuid) from public;
+revoke all on function public.activate_match(uuid, uuid) from anon;
+grant execute on function public.activate_match(uuid, uuid) to authenticated;
+
+revoke all on function public.advance_room_phase(uuid, public.room_phase) from public;
+revoke all on function public.advance_room_phase(uuid, public.room_phase) from anon;
+grant execute on function public.advance_room_phase(uuid, public.room_phase) to authenticated;
 
 revoke all on function public.resolve_turn(uuid) from public;
 revoke all on function public.resolve_turn(uuid) from anon;

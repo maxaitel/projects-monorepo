@@ -48,6 +48,28 @@ export interface Database {
           room_code: string;
         }[];
       };
+      activate_match: {
+        Args: {
+          p_room_id: string;
+          p_match_id: string;
+        };
+        Returns: {
+          room_id: string;
+          active_match_id: string;
+          status: Database["public"]["Enums"]["room_status"];
+          phase: Database["public"]["Enums"]["room_phase"];
+        }[];
+      };
+      advance_room_phase: {
+        Args: {
+          p_room_id: string;
+          p_next_phase: Database["public"]["Enums"]["room_phase"];
+        };
+        Returns: {
+          room_id: string;
+          phase: Database["public"]["Enums"]["room_phase"];
+        }[];
+      };
       list_vote_options: {
         Args: {
           p_turn_id: string;
