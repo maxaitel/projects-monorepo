@@ -80,15 +80,14 @@ export interface Database {
           vote_count: number;
         }[];
       };
-      mark_winning_submission: {
+      resolve_turn: {
         Args: {
           p_turn_id: string;
-          p_submission_id: string;
         };
         Returns: {
-          submission_id: string;
-          turn_id: string;
-          selected: boolean;
+          winning_submission_id: string;
+          winner_player_id: string;
+          score_deltas: Json;
         }[];
       };
     };

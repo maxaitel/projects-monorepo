@@ -609,11 +609,11 @@ as $$
   order by public.submissions.display_order;
 $$;
 
-create function public.mark_winning_submission(p_turn_id uuid, p_submission_id uuid)
+create function public.resolve_turn(p_turn_id uuid)
 returns table (
-  submission_id uuid,
-  turn_id uuid,
-  selected boolean
+  winning_submission_id uuid,
+  winner_player_id uuid,
+  score_deltas jsonb
 )
 language plpgsql
 security definer
@@ -621,6 +621,15 @@ set search_path = public, pg_temp
 as $$
 declare
   target_room_id uuid;
+  target_match_id uuid;
+  winner_submission_id uuid;
+  winner_id uuid;
+  top_vote_count integer;
+  top_vote_ties integer;
+  submission_count integer;
+  lowest_vote_count integer;
+  existing_winning_submission_id uuid;
+  deltas jsonb;
 begin
   select private.turn_room_id(p_turn_id)
   into target_room_id;
@@ -637,27 +646,139 @@ begin
     raise exception 'turn is not revealable';
   end if;
 
-  if not exists (
-    select 1
+  select public.turns.match_id, public.turns.winning_submission_id
+  into target_match_id, existing_winning_submission_id
+  from public.turns
+  where public.turns.id = p_turn_id;
+
+  if existing_winning_submission_id is not null then
+    select public.submissions.player_id
+    into winner_id
     from public.submissions
-    where public.submissions.id = p_submission_id
-      and public.submissions.turn_id = p_turn_id
-  ) then
-    raise exception 'submission is not part of the turn';
+    where public.submissions.id = existing_winning_submission_id;
+
+    winning_submission_id := existing_winning_submission_id;
+    winner_player_id := winner_id;
+    score_deltas := '{}'::jsonb;
+    return next;
+    return;
   end if;
+
+  with submission_votes as (
+    select
+      public.submissions.id,
+      public.submissions.player_id,
+      public.submissions.display_order,
+      count(public.votes.id)::integer as vote_count
+    from public.submissions
+    left join public.votes on public.votes.submission_id = public.submissions.id
+    where public.submissions.turn_id = p_turn_id
+    group by public.submissions.id
+  ),
+  ranked as (
+    select *
+    from submission_votes
+    order by vote_count desc, display_order asc
+  )
+  select ranked.id, ranked.player_id, ranked.vote_count
+  into winner_submission_id, winner_id, top_vote_count
+  from ranked
+  limit 1;
+
+  if winner_submission_id is null then
+    raise exception 'cannot resolve a turn without submissions';
+  end if;
+
+  with submission_votes as (
+    select
+      public.submissions.id,
+      public.submissions.player_id,
+      public.submissions.display_order,
+      count(public.votes.id)::integer as vote_count
+    from public.submissions
+    left join public.votes on public.votes.submission_id = public.submissions.id
+    where public.submissions.turn_id = p_turn_id
+    group by public.submissions.id
+  )
+  select count(*), min(vote_count), count(*) filter (where vote_count = top_vote_count)
+  into submission_count, lowest_vote_count, top_vote_ties
+  from submission_votes;
 
   update public.submissions
   set selected = false
-  where public.submissions.turn_id = p_turn_id
-    and public.submissions.id <> p_submission_id;
+  where public.submissions.turn_id = p_turn_id;
 
   update public.submissions
   set selected = true
-  where public.submissions.id = p_submission_id
-    and public.submissions.turn_id = p_turn_id
-  returning public.submissions.id, public.submissions.turn_id, public.submissions.selected
-  into submission_id, turn_id, selected;
+  where public.submissions.id = winner_submission_id;
 
+  update public.turns
+  set winning_submission_id = winner_submission_id,
+      phase = 'reveal'
+  where public.turns.id = p_turn_id;
+
+  update public.rooms
+  set phase = 'reveal'
+  where public.rooms.id = target_room_id;
+
+  with submission_votes as (
+    select
+      public.submissions.player_id,
+      count(public.votes.id)::integer as vote_count
+    from public.submissions
+    left join public.votes on public.votes.submission_id = public.submissions.id
+    where public.submissions.turn_id = p_turn_id
+    group by public.submissions.id
+  ),
+  computed_deltas as (
+    select
+      submission_votes.player_id,
+      case
+        when submission_votes.player_id = winner_id then
+          case when top_vote_ties > 1 then 25 else 35 end
+        when submission_count > 2 and submission_votes.vote_count = lowest_vote_count then -5
+        when submission_votes.vote_count > 0 then 10
+        else -5
+      end as delta
+    from submission_votes
+  ),
+  updated_players as (
+    update public.players
+    set score = public.players.score + computed_deltas.delta
+    from computed_deltas
+    where public.players.id = computed_deltas.player_id
+    returning public.players.id, computed_deltas.delta
+  )
+  select coalesce(jsonb_object_agg(updated_players.id::text, updated_players.delta), '{}'::jsonb)
+  into deltas
+  from updated_players;
+
+  if top_vote_ties > 1 then
+    insert into public.badges (match_id, turn_id, player_id, badge_type, reason)
+    values (target_match_id, p_turn_id, winner_id, 'photo_finish', 'Won a tied vote by photo finish.');
+  else
+    insert into public.badges (match_id, turn_id, player_id, badge_type, reason)
+    values (target_match_id, p_turn_id, winner_id, 'brilliant', 'Won the room vote.');
+  end if;
+
+  insert into public.badges (match_id, turn_id, player_id, badge_type, reason)
+  select target_match_id, p_turn_id, lowest.player_id, 'questionable', 'Lowest vote count this turn.'
+  from (
+    select
+      public.submissions.player_id,
+      count(public.votes.id)::integer as vote_count
+    from public.submissions
+    left join public.votes on public.votes.submission_id = public.submissions.id
+    where public.submissions.turn_id = p_turn_id
+      and public.submissions.player_id <> winner_id
+    group by public.submissions.id
+  ) lowest
+  where submission_count > 2
+    and lowest.vote_count = lowest_vote_count;
+
+  winning_submission_id := winner_submission_id;
+  winner_player_id := winner_id;
+  score_deltas := deltas;
   return next;
 end;
 $$;
@@ -718,15 +839,14 @@ revoke all privileges on table public.prompt_pack from public, anon, authenticat
 grant usage on schema public to authenticated;
 grant select, update on public.rooms to authenticated;
 grant select on public.players to authenticated;
-grant update (display_name, avatar_color, connected, kicked_at, score) on public.players to authenticated;
+grant update (display_name, avatar_color, connected, kicked_at) on public.players to authenticated;
 grant select, insert, update on public.matches to authenticated;
 grant select, insert on public.turns to authenticated;
-grant update (winning_submission_id, phase) on public.turns to authenticated;
+grant update (phase) on public.turns to authenticated;
 grant insert (turn_id, player_id, body) on public.submissions to authenticated;
-grant update (selected) on public.submissions to authenticated;
 grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
-grant select, insert on public.badges to authenticated;
-grant select, insert on public.room_events to authenticated;
+grant select on public.badges to authenticated;
+grant select on public.room_events to authenticated;
 grant select on public.prompt_pack to authenticated;
 
 revoke all on function public.create_room(text, text, text) from public;
@@ -749,9 +869,9 @@ revoke all on function public.list_vote_counts(uuid) from public;
 revoke all on function public.list_vote_counts(uuid) from anon;
 grant execute on function public.list_vote_counts(uuid) to authenticated;
 
-revoke all on function public.mark_winning_submission(uuid, uuid) from public;
-revoke all on function public.mark_winning_submission(uuid, uuid) from anon;
-grant execute on function public.mark_winning_submission(uuid, uuid) to authenticated;
+revoke all on function public.resolve_turn(uuid) from public;
+revoke all on function public.resolve_turn(uuid) from anon;
+grant execute on function public.resolve_turn(uuid) to authenticated;
 
 create policy "room players can read rooms"
 on public.rooms for select to authenticated
