@@ -193,14 +193,23 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
           )
         ) : null}
         {phase === "submit" ? (
-          hasSubmittedReply ? (
-            <SubmittedReplyNotice />
-          ) : (
-            <SubmitPhase
-              disabled={initialRoom.currentPlayerId === null || initialRoom.currentTurnId === null}
-              onSubmit={submitReply}
-            />
-          )
+          <>
+            {hasSubmittedReply ? (
+              <SubmittedReplyNotice />
+            ) : (
+              <SubmitPhase
+                disabled={initialRoom.currentPlayerId === null || initialRoom.currentTurnId === null}
+                onSubmit={submitReply}
+              />
+            )}
+            {isHost ? (
+              <HostActionPanel
+                disabled={isActionPending || !initialRoom.currentPlayerId}
+                label="Open voting"
+                onClick={advancePhase}
+              />
+            ) : null}
+          </>
         ) : null}
         {phase === "vote" ? (
           <>

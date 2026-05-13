@@ -148,6 +148,35 @@ describe("RoomClient", () => {
     );
   });
 
+  it("lets the host open voting from the submitted waiting state", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <RoomClient
+        initialRoom={createRoom({
+          currentPlayerId: "player-host",
+          hasSubmitted: true,
+          currentPlayerSubmissionId: "submission-host",
+          submissions: [
+            {
+              id: "submission-host",
+              body: "host reply",
+              authorPlayerId: "player-host",
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/reply submitted/i);
+
+    await user.click(screen.getByRole("button", { name: /open voting/i }));
+
+    await waitFor(() =>
+      expect(actionMocks.advancePhaseAction).toHaveBeenCalledWith("ABCD", "room-1", "player-host"),
+    );
+  });
+
   it("casts a vote through the room action and locks the selected reply", async () => {
     const user = userEvent.setup();
 
