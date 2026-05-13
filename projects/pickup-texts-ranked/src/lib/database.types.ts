@@ -48,6 +48,38 @@ export interface Database {
           room_code: string;
         }[];
       };
+      list_vote_options: {
+        Args: {
+          p_turn_id: string;
+        };
+        Returns: {
+          submission_id: string;
+          body: string;
+          display_order: number;
+        }[];
+      };
+      list_reveal_submissions: {
+        Args: {
+          p_turn_id: string;
+        };
+        Returns: {
+          submission_id: string;
+          player_id: string;
+          body: string;
+          display_order: number;
+          selected: boolean;
+          vote_count: number;
+        }[];
+      };
+      list_vote_counts: {
+        Args: {
+          p_turn_id: string;
+        };
+        Returns: {
+          submission_id: string;
+          vote_count: number;
+        }[];
+      };
     };
     Enums: {
       room_phase: "lobby" | "prompt" | "submit" | "vote" | "reveal" | "recap";

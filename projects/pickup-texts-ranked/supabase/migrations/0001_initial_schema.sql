@@ -365,6 +365,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
+  perform pg_advisory_xact_lock(hashtextextended(new.turn_id::text, 0));
+
   new.display_order := (
     select coalesce(max(public.submissions.display_order), -1) + 1
     from public.submissions
@@ -373,6 +375,29 @@ begin
 
   return new;
 end;
+$$;
+
+create function private.turn_is_active_for_any_room_phase(target_turn_id uuid, expected_phases public.room_phase[])
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select exists (
+    select 1
+    from public.turns
+    join public.matches on public.matches.id = public.turns.match_id
+    join public.rooms on public.rooms.id = public.matches.room_id
+    where public.turns.id = target_turn_id
+      and public.rooms.active_match_id = public.matches.id
+      and public.rooms.phase = any(expected_phases)
+      and public.turns.turn_index = (
+        select max(active_turn.turn_index)
+        from public.turns active_turn
+        where active_turn.match_id = public.turns.match_id
+      )
+  );
 $$;
 
 create function public.create_room(
@@ -510,6 +535,80 @@ begin
 end;
 $$;
 
+create function public.list_vote_options(p_turn_id uuid)
+returns table (
+  submission_id uuid,
+  body text,
+  display_order integer
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    public.submissions.id as submission_id,
+    public.submissions.body,
+    public.submissions.display_order
+  from public.submissions
+  where public.submissions.turn_id = p_turn_id
+    and private.is_room_member(private.turn_room_id(p_turn_id))
+    and private.turn_is_active_for_any_room_phase(p_turn_id, array['vote', 'reveal', 'recap']::public.room_phase[])
+  order by public.submissions.display_order;
+$$;
+
+create function public.list_reveal_submissions(p_turn_id uuid)
+returns table (
+  submission_id uuid,
+  player_id uuid,
+  body text,
+  display_order integer,
+  selected boolean,
+  vote_count bigint
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    public.submissions.id as submission_id,
+    public.submissions.player_id,
+    public.submissions.body,
+    public.submissions.display_order,
+    public.submissions.selected,
+    count(public.votes.id) as vote_count
+  from public.submissions
+  left join public.votes on public.votes.submission_id = public.submissions.id
+  where public.submissions.turn_id = p_turn_id
+    and private.is_room_member(private.turn_room_id(p_turn_id))
+    and private.turn_is_active_for_any_room_phase(p_turn_id, array['reveal', 'recap']::public.room_phase[])
+  group by public.submissions.id
+  order by public.submissions.display_order;
+$$;
+
+create function public.list_vote_counts(p_turn_id uuid)
+returns table (
+  submission_id uuid,
+  vote_count bigint
+)
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select
+    public.submissions.id as submission_id,
+    count(public.votes.id) as vote_count
+  from public.submissions
+  left join public.votes on public.votes.submission_id = public.submissions.id
+  where public.submissions.turn_id = p_turn_id
+    and private.is_room_member(private.turn_room_id(p_turn_id))
+    and private.turn_is_active_for_any_room_phase(p_turn_id, array['reveal', 'recap']::public.room_phase[])
+  group by public.submissions.id
+  order by public.submissions.display_order;
+$$;
+
 create index players_room_id_idx on public.players(room_id);
 create index players_user_id_idx on public.players(user_id);
 create index rooms_host_player_id_idx on public.rooms(host_player_id);
@@ -570,10 +669,8 @@ grant update (display_name, avatar_color, connected, kicked_at, score) on public
 grant select, insert, update on public.matches to authenticated;
 grant select, insert on public.turns to authenticated;
 grant update (winning_submission_id, phase) on public.turns to authenticated;
-grant select on public.submissions to authenticated;
 grant insert (turn_id, player_id, body) on public.submissions to authenticated;
 grant update (selected) on public.submissions to authenticated;
-grant select on public.votes to authenticated;
 grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
 grant select, insert on public.badges to authenticated;
 grant select, insert on public.room_events to authenticated;
@@ -586,6 +683,18 @@ grant execute on function public.create_room(text, text, text) to authenticated;
 revoke all on function public.join_room(text, text, text) from public;
 revoke all on function public.join_room(text, text, text) from anon;
 grant execute on function public.join_room(text, text, text) to authenticated;
+
+revoke all on function public.list_vote_options(uuid) from public;
+revoke all on function public.list_vote_options(uuid) from anon;
+grant execute on function public.list_vote_options(uuid) to authenticated;
+
+revoke all on function public.list_reveal_submissions(uuid) from public;
+revoke all on function public.list_reveal_submissions(uuid) from anon;
+grant execute on function public.list_reveal_submissions(uuid) to authenticated;
+
+revoke all on function public.list_vote_counts(uuid) from public;
+revoke all on function public.list_vote_counts(uuid) from anon;
+grant execute on function public.list_vote_counts(uuid) to authenticated;
 
 create policy "room players can read rooms"
 on public.rooms for select to authenticated
