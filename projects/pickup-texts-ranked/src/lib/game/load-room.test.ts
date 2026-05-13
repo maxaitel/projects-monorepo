@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { mapRoomView } from "./load-room";
+import { createClient } from "@/lib/supabase/server";
+
+import { loadRoomByCode, mapRoomView } from "./load-room";
+
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(),
+}));
+
+const createClientMock = vi.mocked(createClient);
+
+beforeEach(() => {
+  createClientMock.mockReset();
+});
 
 describe("mapRoomView", () => {
   it("maps joined room rows into UI state", () => {
@@ -159,5 +171,39 @@ describe("mapRoomView", () => {
       body: "free after 8, emotionally available after snacks",
       authorName: "Jules",
     });
+  });
+});
+
+describe("loadRoomByCode", () => {
+  it("returns null without querying protected room tables when there is no current user", async () => {
+    const from = vi.fn();
+    createClientMock.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: null,
+        }),
+      },
+      from,
+    } as never);
+
+    await expect(loadRoomByCode("ABCD")).resolves.toBeNull();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("returns null without querying protected room tables when auth returns an unusable user", async () => {
+    const from = vi.fn();
+    createClientMock.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: new Error("invalid token"),
+        }),
+      },
+      from,
+    } as never);
+
+    await expect(loadRoomByCode("ABCD")).resolves.toBeNull();
+    expect(from).not.toHaveBeenCalled();
   });
 });

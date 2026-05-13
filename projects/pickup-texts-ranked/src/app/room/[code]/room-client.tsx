@@ -29,9 +29,20 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
 
   const isHost =
     initialRoom.currentPlayerId !== null && initialRoom.currentPlayerId === initialRoom.hostPlayerId;
-  const visibleSubmissions = submittedReply
+  const currentPlayerSubmission = initialRoom.submissions.find(
+    (submission) =>
+      initialRoom.currentPlayerId !== null && submission.authorPlayerId === initialRoom.currentPlayerId,
+  );
+  const hasSubmittedReply = currentPlayerSubmission !== undefined || submittedReply !== null;
+  const voteSubmissions = submittedReply
     ? [{ id: "local", body: submittedReply, authorPlayerId: initialRoom.currentPlayerId }]
     : initialRoom.submissions;
+  const visibleSubmissions = voteSubmissions.filter(
+    (submission) =>
+      initialRoom.currentPlayerId === null ||
+      submission.authorPlayerId === null ||
+      submission.authorPlayerId !== initialRoom.currentPlayerId,
+  );
 
   return (
     <main className="mx-auto grid min-h-dvh w-full max-w-5xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:py-6">
@@ -66,13 +77,17 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
           <SubmitPhase disabled onSubmit={() => undefined} />
         ) : null}
         {phase === "submit" ? (
-          <SubmitPhase
-            disabled={initialRoom.currentPlayerId === null}
-            onSubmit={(reply) => {
-              setSubmittedReply(reply);
-              setPhase("vote");
-            }}
-          />
+          hasSubmittedReply ? (
+            <SubmittedReplyNotice />
+          ) : (
+            <SubmitPhase
+              disabled={initialRoom.currentPlayerId === null}
+              onSubmit={(reply) => {
+                setSubmittedReply(reply);
+                setPhase("vote");
+              }}
+            />
+          )
         ) : null}
         {phase === "vote" ? (
           <VotePhase
@@ -95,5 +110,17 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
         {phase === "recap" ? <RecapScreen scores={initialRoom.players} /> : null}
       </aside>
     </main>
+  );
+}
+
+function SubmittedReplyNotice() {
+  return (
+    <section
+      className="grid w-full gap-2 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50"
+      role="status"
+    >
+      <h2 className="text-base font-semibold">Reply submitted</h2>
+      <p className="text-sm text-zinc-300">Waiting for the room to finish submitting.</p>
+    </section>
   );
 }

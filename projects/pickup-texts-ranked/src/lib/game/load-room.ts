@@ -134,6 +134,10 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
     data: { user },
   } = await supabase.auth.getUser();
 
+  if (!user) {
+    return null;
+  }
+
   const { data: room, error: roomError } = await supabase
     .from("rooms")
     .select("id, code, phase, host_player_id, active_match_id")
