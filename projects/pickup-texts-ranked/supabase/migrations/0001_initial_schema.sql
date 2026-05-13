@@ -203,6 +203,7 @@ as $$
     where public.turns.id = target_turn_id
       and public.rooms.active_match_id = public.matches.id
       and public.rooms.phase = expected_phase
+      and public.turns.winning_submission_id is null
       and public.turns.turn_index = (
         select max(active_turn.turn_index)
         from public.turns active_turn
@@ -789,7 +790,7 @@ begin
   if not (
     (current_phase = 'prompt' and p_next_phase = 'submit')
     or (current_phase = 'submit' and p_next_phase = 'vote')
-    or (current_phase = 'reveal' and p_next_phase in ('prompt', 'recap'))
+    or (current_phase = 'reveal' and p_next_phase = 'recap')
   ) then
     raise exception 'illegal room phase transition';
   end if;
@@ -813,6 +814,98 @@ begin
   where public.rooms.id = p_room_id
   returning public.rooms.id, public.rooms.phase
   into room_id, phase;
+
+  return next;
+end;
+$$;
+
+create function public.create_next_turn(
+  p_room_id uuid,
+  p_prompt_id text default null,
+  p_prompt_text text default null
+)
+returns table (
+  room_id uuid,
+  match_id uuid,
+  turn_id uuid,
+  turn_index integer,
+  phase public.room_phase
+)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  current_match_id uuid;
+  latest_turn_id uuid;
+  latest_turn_index integer;
+  selected_prompt_id text;
+  selected_prompt_text text;
+begin
+  if not private.is_room_host(p_room_id) then
+    raise exception 'only room hosts can create turns';
+  end if;
+
+  select public.rooms.active_match_id
+  into current_match_id
+  from public.rooms
+  where public.rooms.id = p_room_id
+    and public.rooms.status = 'playing'
+    and public.rooms.phase = 'reveal'
+    and public.rooms.active_match_id is not null
+  for update;
+
+  if current_match_id is null then
+    raise exception 'room is not ready for the next turn';
+  end if;
+
+  select public.turns.id, public.turns.turn_index
+  into latest_turn_id, latest_turn_index
+  from public.turns
+  where public.turns.match_id = current_match_id
+  order by public.turns.turn_index desc
+  limit 1
+  for update;
+
+  if latest_turn_id is null then
+    raise exception 'active match has no turns';
+  end if;
+
+  if not exists (
+    select 1
+    from public.turns
+    where public.turns.id = latest_turn_id
+      and public.turns.winning_submission_id is not null
+  ) then
+    raise exception 'latest turn is not resolved';
+  end if;
+
+  if p_prompt_id is not null and p_prompt_text is not null then
+    selected_prompt_id := p_prompt_id;
+    selected_prompt_text := p_prompt_text;
+  else
+    select public.prompt_pack.id, public.prompt_pack.prompt_text
+    into selected_prompt_id, selected_prompt_text
+    from public.prompt_pack
+    where public.prompt_pack.enabled = true
+    order by random()
+    limit 1;
+  end if;
+
+  if selected_prompt_id is null or selected_prompt_text is null then
+    raise exception 'prompt is required';
+  end if;
+
+  insert into public.turns (match_id, turn_index, prompt_id, prompt_text)
+  values (current_match_id, latest_turn_index + 1, selected_prompt_id, selected_prompt_text)
+  returning public.turns.id, public.turns.turn_index
+  into turn_id, turn_index;
+
+  update public.rooms
+  set phase = 'prompt'
+  where public.rooms.id = p_room_id
+  returning public.rooms.id, public.rooms.active_match_id, public.rooms.phase
+  into room_id, match_id, phase;
 
   return next;
 end;
@@ -1052,7 +1145,7 @@ grant usage on schema public to authenticated;
 grant select on public.rooms to authenticated;
 grant select on public.players to authenticated;
 grant update (display_name, avatar_color, connected, kicked_at) on public.players to authenticated;
-grant select, insert, update on public.matches to authenticated;
+grant select on public.matches to authenticated;
 grant select on public.turns to authenticated;
 grant insert (turn_id, player_id, body) on public.submissions to authenticated;
 grant insert (turn_id, voter_player_id, submission_id) on public.votes to authenticated;
@@ -1091,6 +1184,10 @@ grant execute on function public.activate_match(uuid, uuid) to authenticated;
 revoke all on function public.advance_room_phase(uuid, public.room_phase) from public;
 revoke all on function public.advance_room_phase(uuid, public.room_phase) from anon;
 grant execute on function public.advance_room_phase(uuid, public.room_phase) to authenticated;
+
+revoke all on function public.create_next_turn(uuid, text, text) from public;
+revoke all on function public.create_next_turn(uuid, text, text) from anon;
+grant execute on function public.create_next_turn(uuid, text, text) to authenticated;
 
 revoke all on function public.resolve_turn(uuid) from public;
 revoke all on function public.resolve_turn(uuid) from anon;

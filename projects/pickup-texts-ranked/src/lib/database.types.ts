@@ -84,6 +84,20 @@ export interface Database {
           phase: Database["public"]["Enums"]["room_phase"];
         }[];
       };
+      create_next_turn: {
+        Args: {
+          p_room_id: string;
+          p_prompt_id?: string | null;
+          p_prompt_text?: string | null;
+        };
+        Returns: {
+          room_id: string;
+          match_id: string;
+          turn_id: string;
+          turn_index: number;
+          phase: Database["public"]["Enums"]["room_phase"];
+        }[];
+      };
       list_vote_options: {
         Args: {
           p_turn_id: string;
