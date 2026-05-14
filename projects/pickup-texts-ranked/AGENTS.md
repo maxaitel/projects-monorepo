@@ -9,5 +9,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - This app lives inside the `small-projects-monorepo` public GitHub monorepo, which contains many small projects under `projects/`.
 - Assume the default production stack is Next.js, hosted Supabase for realtime/database/auth, and Vercel for hosting unless the user explicitly chooses otherwise.
 - When the target is Vercel production, use hosted Supabase early instead of starting with local Docker.
-- Treat `main` as the production branch. When a feature is finished and verified, merge and push it to `main` because that is the actual prod branch.
+- Treat `main` as the production branch. When the user says to push to `main`, that means ship it to production: merge or commit to `main`, push `main` to GitHub, and deploy this Vercel project to production.
 - If `main` is empty or close to empty, build directly on `main` or merge fast instead of over-managing branches.
