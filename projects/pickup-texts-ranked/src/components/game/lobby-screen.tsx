@@ -28,57 +28,59 @@ export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps
   }
 
   return (
-    <section className="mx-auto grid w-full max-w-lg gap-4 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="bento-card flex flex-col gap-6 p-6 sm:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Room code</p>
-          <p className="font-mono text-3xl font-bold tracking-[0.18em]">{code}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-zinc-400">{invitePath}</span>
-            <button
-              className="inline-flex h-8 items-center gap-1 rounded-md border border-zinc-700 px-2 text-xs text-zinc-200 transition hover:bg-zinc-800"
-              onClick={() => void copyInviteLink()}
-              type="button"
-            >
-              <Copy aria-hidden="true" size={14} />
-              {copied ? "Copied" : "Copy link"}
-            </button>
-          </div>
+          <p className="mb-1 text-xs font-bold uppercase tracking-widest text-[var(--foreground)] opacity-60">Room Link</p>
+          <p className="font-mono text-xs text-[var(--foreground)] opacity-80">{invitePath}</p>
+          <button
+            className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-[var(--border-color)] px-4 text-xs font-bold uppercase tracking-wide text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            onClick={() => void copyInviteLink()}
+            type="button"
+          >
+            <Copy aria-hidden="true" size={16} />
+            {copied ? "Copied" : "Copy Link"}
+          </button>
         </div>
         {isHost ? (
           <button
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-cyan-400 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-300"
+            className="btn-primary inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold uppercase tracking-wide"
             onClick={onStart}
             type="button"
           >
-            <Play aria-hidden="true" size={17} />
-            Start game
+            <Play aria-hidden="true" size={18} fill="currentColor" />
+            Start Game
           </button>
         ) : (
-          <p className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-300">
-            Waiting for host
+          <p className="flex h-12 items-center justify-center rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80">
+            Waiting for Host
           </p>
         )}
       </div>
 
-      <ul className="grid gap-2" aria-label="Players">
-        {players.map((player) => (
-          <li
-            className="flex min-h-11 items-center justify-between rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm"
-            key={player.id}
-          >
-            <span className="truncate font-medium">{player.name}</span>
-            <span className="flex items-center gap-2">
-              {typeof player.score === "number" ? (
-                <span className="font-mono text-xs text-cyan-300">{player.score}</span>
-              ) : null}
-              {player.isHost ? (
-                <Crown aria-label="Host" className="text-amber-300" size={17} />
-              ) : null}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <hr className="border-[var(--border-color)]" />
+
+      <div>
+        <h2 className="mb-4 font-display text-2xl font-bold text-[var(--foreground)]">Roster</h2>
+        <ul className="grid gap-3" aria-label="Players">
+          {players.map((player) => (
+            <li
+              className="input-solid flex min-h-12 items-center justify-between rounded-lg px-4 text-sm font-bold text-[var(--foreground)]"
+              key={player.id}
+            >
+              <span className="truncate uppercase tracking-wide">{player.name}</span>
+              <span className="flex items-center gap-3">
+                {typeof player.score === "number" ? (
+                  <span className="font-mono text-sm font-bold text-[var(--accent)]">{player.score}</span>
+                ) : null}
+                {player.isHost ? (
+                  <Crown aria-label="Host" className="text-[var(--accent)]" size={18} strokeWidth={2.5} />
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

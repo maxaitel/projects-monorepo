@@ -11,22 +11,22 @@ type ThreadViewProps = {
 
 export function ThreadView({ messages }: ThreadViewProps) {
   return (
-    <ol className="grid w-full gap-2" aria-label="Text thread">
+    <ol className="grid w-full gap-4" aria-label="Text thread">
       {messages.map((message) => {
         const isYou = message.side === "you";
 
         return (
           <li className={`flex ${isYou ? "justify-end" : "justify-start"}`} key={message.id}>
             <div
-              className={`max-w-[82%] rounded-lg px-3 py-2 text-sm leading-5 shadow-sm ${
+              className={`max-w-[85%] px-5 py-4 text-base font-medium shadow-md ${
                 isYou
-                  ? "bg-cyan-400 text-zinc-950"
-                  : "border border-zinc-800 bg-zinc-900 text-zinc-100"
+                  ? "rounded-2xl rounded-tr-sm bg-[var(--accent)] text-[var(--accent-fg)]"
+                  : "bento-card-light rounded-2xl rounded-tl-sm"
               }`}
             >
-              <p className="whitespace-pre-wrap break-words">{message.body}</p>
+              <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
               {message.badge ? (
-                <span className="mt-2 inline-flex rounded-sm bg-zinc-950/15 px-2 py-0.5 text-xs font-semibold">
+                <span className={`mt-3 block w-fit rounded px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${isYou ? "bg-black/20" : "bg-black/10"}`}>
                   {message.badge}
                 </span>
               ) : null}

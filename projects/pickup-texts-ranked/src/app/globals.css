@@ -1,15 +1,32 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #f4f4f5;
+  --background: #36000b;
+  --foreground: #fcf9f2;
+
+  --card-bg: #4a0212;
+  --card-fg: #fcf9f2;
+
+  --card-light: #fcf9f2;
+  --card-light-fg: #1a0005;
+
+  --accent: #ff2a4d;
+  --accent-fg: #ffffff;
+
+  --border-color: #5c0819;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+
+  --color-card: var(--card-bg);
+  --color-card-light: var(--card-light);
+  --color-card-light-fg: var(--card-light-fg);
+  --color-accent: var(--accent);
+  --color-border-subtle: var(--border-color);
 }
 
 * {
@@ -24,11 +41,78 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
 input,
 textarea {
   font: inherit;
+}
+
+@layer utilities {
+  .text-fluid-hero {
+    font-size: 3.75rem;
+    line-height: 0.95;
+    letter-spacing: 0;
+  }
+
+  .text-fluid-h1 {
+    font-size: 2.5rem;
+    line-height: 1.1;
+    letter-spacing: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .text-fluid-hero {
+      font-size: 5.5rem;
+    }
+
+    .text-fluid-h1 {
+      font-size: 3.5rem;
+    }
+  }
+
+  .bento-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  .bento-card-light {
+    background-color: var(--card-light);
+    color: var(--card-light-fg);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .input-solid {
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    color: var(--foreground);
+    transition: all 0.2s ease-out;
+  }
+
+  .input-solid:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(255, 42, 77, 0.15);
+  }
+
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-fg);
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 42, 77, 0.3);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
 }

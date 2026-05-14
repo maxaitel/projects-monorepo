@@ -167,26 +167,28 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
   }
 
   return (
-    <main className="mx-auto grid min-h-dvh w-full max-w-5xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:py-6">
-      <section className="grid content-start gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <main className="mx-auto grid min-h-dvh w-full max-w-6xl gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1.2fr)_24rem] lg:py-12">
+      <section className="grid content-start gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Room</p>
-            <h1 className="font-mono text-2xl font-bold tracking-[0.18em] text-zinc-50">
+            <p className="text-sm font-bold uppercase tracking-widest text-[var(--accent)]">Room Code</p>
+            <h1 className="font-display text-4xl font-black tracking-widest text-[var(--foreground)]">
               {initialRoom.code}
             </h1>
           </div>
-          <p className="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-semibold capitalize text-zinc-200">
-            {phase}
-          </p>
+          <div className="bento-card px-4 py-2">
+            <p className="text-sm font-bold uppercase tracking-wider text-[var(--foreground)]">
+              Phase: <span className="text-[var(--accent)]">{phase}</span>
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3 sm:p-4">
+        <div className="bento-card p-4 sm:p-6 lg:p-8">
           <ThreadView messages={initialRoom.messages} />
         </div>
       </section>
 
-      <aside className="grid content-start gap-4">
+      <aside className="grid content-start gap-6">
         {phase === "lobby" ? (
           <LobbyScreen
             code={initialRoom.code}
@@ -372,10 +374,10 @@ function PlayerRecoveryPanel({
 function RoomActionError({ message }: { message: string }) {
   return (
     <p
-      className="rounded-md border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-200"
+      className="bento-card border-red-500/50 bg-red-950/40 p-4 text-sm font-bold text-red-200"
       role="alert"
     >
-      {message}
+      Error: {message}
     </p>
   );
 }

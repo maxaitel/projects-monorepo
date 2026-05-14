@@ -12,17 +12,19 @@ export function RecapScreen({ scores }: RecapScreenProps) {
   const orderedScores = [...scores].sort((a, b) => b.score - a.score);
 
   return (
-    <section className="grid w-full gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50">
-      <h2 className="text-base font-semibold">Score recap</h2>
-      <ol className="grid gap-2" aria-label="Scores">
+    <section className="bento-card w-full p-6 sm:p-8">
+      <h2 className="mb-6 font-display text-3xl font-black uppercase tracking-wider text-[var(--foreground)]">Final Scores</h2>
+      <ol className="grid gap-3" aria-label="Scores">
         {orderedScores.map((score, index) => (
           <li
-            className="grid min-h-11 grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md border border-zinc-800 bg-zinc-950 px-3 text-sm"
+            className="input-solid grid min-h-14 grid-cols-[3rem_1fr_auto] items-center gap-4 rounded-lg px-4"
             key={score.id}
           >
-            <span className="font-mono text-zinc-500">{index + 1}</span>
-            <span className="truncate font-medium">{score.name}</span>
-            <span className="font-mono font-semibold text-cyan-300">{score.score}</span>
+            <span className={`font-display text-xl font-black ${index === 0 ? "text-[var(--accent)]" : "text-[var(--foreground)] opacity-40"}`}>
+              #{index + 1}
+            </span>
+            <span className="truncate text-base font-bold uppercase tracking-wide text-[var(--foreground)]">{score.name}</span>
+            <span className="font-mono text-xl font-bold text-[var(--accent)]">{score.score}</span>
           </li>
         ))}
       </ol>

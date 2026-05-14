@@ -35,13 +35,13 @@ export function SubmitPhase({ disabled, onSubmit }: SubmitPhaseProps) {
 
   return (
     <form
-      className="grid w-full gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50"
+      className="bento-card grid w-full gap-4 p-6 sm:p-8"
       onSubmit={handleSubmit}
     >
-      <label className="grid gap-2 text-sm font-medium text-zinc-200">
-        Reply
+      <label className="grid gap-2 text-sm font-bold uppercase tracking-widest text-[var(--foreground)] opacity-90">
+        Your Reply
         <textarea
-          className="min-h-28 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+          className="input-solid min-h-32 w-full resize-none rounded-lg p-4 text-base font-medium transition placeholder:text-[var(--foreground)] placeholder:opacity-30"
           disabled={disabled || isSubmitting}
           maxLength={220}
           onChange={(event) => {
@@ -54,21 +54,21 @@ export function SubmitPhase({ disabled, onSubmit }: SubmitPhaseProps) {
       </label>
       {error ? (
         <p
-          className="rounded-md border border-red-500/40 bg-red-950/40 px-3 py-2 text-sm text-red-200"
+          className="rounded-lg border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm font-bold text-red-200"
           role="alert"
         >
           {error}
         </p>
       ) : null}
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs text-zinc-400">{reply.length}/220</span>
+      <div className="flex items-center justify-between gap-4 mt-2">
+        <span className="font-mono text-xs font-bold text-[var(--foreground)] opacity-60">{reply.length}/220</span>
         <button
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-cyan-400 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn-primary inline-flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
           disabled={disabled || isSubmitting || !trimmedReply}
           type="submit"
         >
-          <Send aria-hidden="true" size={17} />
-          {isSubmitting ? "Submitting" : "Submit reply"}
+          <Send aria-hidden="true" size={18} />
+          {isSubmitting ? "Submitting" : "Submit Reply"}
         </button>
       </div>
     </form>

@@ -66,7 +66,7 @@ describe("game screens", () => {
       />,
     );
 
-    expect(screen.getByText("K9M2")).toBeInTheDocument();
+    expect(screen.getByText("/room/K9M2")).toBeInTheDocument();
     expect(screen.getByText("Mina")).toBeInTheDocument();
     expect(screen.getByText("Jules")).toBeInTheDocument();
 
@@ -168,7 +168,7 @@ describe("game screens", () => {
       />,
     );
 
-    expect(screen.getAllByText(/selected/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/vote recorded/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /vote for reply 1/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /vote for reply 2/i })).toBeDisabled();
 
@@ -192,7 +192,7 @@ describe("game screens", () => {
     );
 
     expect(screen.getByText("Jules")).toBeInTheDocument();
-    expect(screen.getByText("your read receipts have great timing")).toBeInTheDocument();
+    expect(screen.getByText(/your read receipts have great timing/i)).toBeInTheDocument();
     expect(screen.getByText("brilliant")).toBeInTheDocument();
     expect(screen.getByText("photo finish")).toBeInTheDocument();
 

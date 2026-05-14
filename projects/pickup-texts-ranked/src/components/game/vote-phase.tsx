@@ -25,39 +25,39 @@ export function VotePhase({
   const isLocked = disabled || pendingSubmissionId !== null || votedSubmissionId !== null;
 
   return (
-    <section className="grid w-full gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50">
-      <h2 className="text-base font-semibold">Vote anonymously</h2>
-      <ol className="grid gap-2">
+    <section className="bento-card w-full p-6 sm:p-8">
+      <h2 className="mb-6 font-display text-2xl font-bold text-[var(--foreground)]">Vote Anonymously</h2>
+      <ol className="grid gap-4">
         {submissions.map((submission, index) => {
           const isPending = pendingSubmissionId === submission.id;
           const isSelected = votedSubmissionId === submission.id;
 
           return (
             <li
-              className={`grid gap-3 rounded-md border p-3 ${
-                isSelected ? "border-cyan-400 bg-cyan-950/40" : "border-zinc-800 bg-zinc-950"
+              className={`input-solid grid gap-4 rounded-xl p-5 ${
+                isSelected ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent)]" : ""
               }`}
               key={submission.id}
             >
               <div className="grid gap-2">
-                <p className="break-words text-sm leading-5 text-zinc-100">{submission.body}</p>
+                <p className="break-words text-base font-medium leading-relaxed text-[var(--foreground)]">{submission.body}</p>
                 {isPending ? (
-                  <span className="text-xs font-semibold text-amber-300">Vote pending</span>
+                  <span className="mt-2 text-xs font-bold uppercase tracking-widest text-[var(--accent)] opacity-80">Vote Pending...</span>
                 ) : null}
                 {isSelected ? (
-                  <span className="text-xs font-semibold text-cyan-300">Selected</span>
+                  <span className="mt-2 text-xs font-bold uppercase tracking-widest text-[var(--accent)]">Vote Recorded</span>
                 ) : null}
               </div>
               <button
                 aria-label={`Vote for reply ${index + 1}`}
                 aria-pressed={isSelected}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-zinc-50 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="btn-primary inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold uppercase tracking-wide disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLocked}
                 onClick={() => onVote(submission.id)}
                 type="button"
               >
-                <ThumbsUp aria-hidden="true" size={17} />
-                {isPending ? "Pending" : isSelected ? "Selected" : "Vote"}
+                <ThumbsUp aria-hidden="true" size={18} fill={isSelected ? "currentColor" : "none"} />
+                {isPending ? "Pending..." : isSelected ? "Voted" : "Vote"}
               </button>
             </li>
           );
