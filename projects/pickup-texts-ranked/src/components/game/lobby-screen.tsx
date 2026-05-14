@@ -30,29 +30,29 @@ export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps
   return (
     <section className="bento-card flex flex-col gap-6 p-6 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <p className="mb-1 text-xs font-bold uppercase tracking-widest text-[var(--foreground)] opacity-60">Room Link</p>
           <p className="font-mono text-xs text-[var(--foreground)] opacity-80">{invitePath}</p>
           <button
-            className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg border border-[var(--border-color)] px-4 text-xs font-bold uppercase tracking-wide text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="mt-3 inline-flex h-10 min-w-32 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[var(--border-color)] px-4 text-xs font-bold uppercase tracking-wide text-[var(--foreground)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
             onClick={() => void copyInviteLink()}
             type="button"
           >
-            <Copy aria-hidden="true" size={16} />
-            {copied ? "Copied" : "Copy Link"}
+            <Copy aria-hidden="true" className="shrink-0" size={16} />
+            <span>{copied ? "Copied" : "Copy Link"}</span>
           </button>
         </div>
         {isHost ? (
           <button
-            className="btn-primary inline-flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold uppercase tracking-wide"
+            className="btn-primary inline-flex h-12 w-full min-w-36 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-6 text-sm font-bold uppercase tracking-wide sm:w-auto"
             onClick={onStart}
             type="button"
           >
-            <Play aria-hidden="true" size={18} fill="currentColor" />
-            Start Game
+            <Play aria-hidden="true" className="shrink-0" size={18} fill="currentColor" />
+            <span>Start Game</span>
           </button>
         ) : (
-          <p className="flex h-12 items-center justify-center rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80">
+          <p className="flex h-12 min-w-40 items-center justify-center whitespace-nowrap rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80">
             Waiting for Host
           </p>
         )}
