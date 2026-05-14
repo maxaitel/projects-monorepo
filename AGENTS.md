@@ -1,6 +1,6 @@
 # Small Projects Monorepo
 
-This repository is `small-projects-monorepo`, a public GitHub monorepo for many small projects and experiments.
+This repository is `small-projects-monorepo`, a public GitHub monorepo for many projects and experiments.
 
 ## Repository Defaults
 
