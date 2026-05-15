@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Crown, Play } from "lucide-react";
+import { Copy, Crown } from "lucide-react";
 import { useState } from "react";
 
 type LobbyPlayer = {
@@ -13,13 +13,12 @@ type LobbyPlayer = {
 type LobbyScreenProps = {
   code: string;
   players: LobbyPlayer[];
-  isHost: boolean;
-  onStart: () => void;
 };
 
-export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps) {
+export function LobbyScreen({ code, players }: LobbyScreenProps) {
   const [copied, setCopied] = useState(false);
   const invitePath = `/room/${code}`;
+  const hasEnoughPlayers = players.length >= 2;
 
   async function copyInviteLink() {
     const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -42,20 +41,12 @@ export function LobbyScreen({ code, players, isHost, onStart }: LobbyScreenProps
             <span>{copied ? "Copied" : "Copy Link"}</span>
           </button>
         </div>
-        {isHost ? (
-          <button
-            className="btn-primary inline-flex h-12 w-full min-w-36 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-6 text-sm font-bold uppercase tracking-wide sm:w-auto"
-            onClick={onStart}
-            type="button"
-          >
-            <Play aria-hidden="true" className="shrink-0" size={18} fill="currentColor" />
-            <span>Start Game</span>
-          </button>
-        ) : (
-          <p className="flex h-12 min-w-40 items-center justify-center whitespace-nowrap rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80">
-            Waiting for Host
-          </p>
-        )}
+        <p
+          className="flex h-12 min-w-44 items-center justify-center whitespace-nowrap rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80"
+          role="status"
+        >
+          {hasEnoughPlayers ? "Starting Automatically" : "Waiting for Players"}
+        </p>
       </div>
 
       <hr className="border-[var(--border-color)]" />

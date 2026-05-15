@@ -10,6 +10,7 @@ export type ActionResult = { ok: true } | { ok: false; reason: string };
 
 export interface RoomSnapshot {
   phase: RoomPhase;
+  phaseStartedAt: string | null;
   hostPlayerId: string;
   connectedPlayerIds: string[];
   turnIndex: number;

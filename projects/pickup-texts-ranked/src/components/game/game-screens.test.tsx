@@ -50,15 +50,10 @@ describe("game screens", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Create room action wiring lands in the next step.");
   });
 
-  it("shows the room code and host start control in the lobby", async () => {
-    const user = userEvent.setup();
-    const onStart = vi.fn();
-
+  it("shows the room code and automatic lobby start status", () => {
     render(
       <LobbyScreen
         code="K9M2"
-        isHost
-        onStart={onStart}
         players={[
           { id: "p1", name: "Mina", isHost: true },
           { id: "p2", name: "Jules", isHost: false },
@@ -69,18 +64,14 @@ describe("game screens", () => {
     expect(screen.getByText("/room/K9M2")).toBeInTheDocument();
     expect(screen.getByText("Mina")).toBeInTheDocument();
     expect(screen.getByText("Jules")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /start game/i }));
-
-    expect(onStart).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: /start game/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/starting automatically/i);
   });
 
   it("marks the explicit host when the host is not first in the lobby", () => {
     render(
       <LobbyScreen
         code="K9M2"
-        isHost
-        onStart={vi.fn()}
         players={[
           { id: "p1", name: "Mina", isHost: false },
           { id: "p2", name: "Jules", isHost: true },
@@ -177,16 +168,11 @@ describe("game screens", () => {
     expect(onVote).not.toHaveBeenCalled();
   });
 
-  it("reveals the winning author and badges", async () => {
-    const user = userEvent.setup();
-    const onContinue = vi.fn();
-
+  it("reveals the winning author and badges without manual continue controls", () => {
     render(
       <RevealPhase
         authorName="Jules"
         badges={["brilliant", "photo finish"]}
-        isHost
-        onContinue={onContinue}
         winningBody="your read receipts have great timing"
       />,
     );
@@ -195,10 +181,8 @@ describe("game screens", () => {
     expect(screen.getByText(/your read receipts have great timing/i)).toBeInTheDocument();
     expect(screen.getByText("brilliant")).toBeInTheDocument();
     expect(screen.getByText("photo finish")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /continue/i }));
-
-    expect(onContinue).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: /continue/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/next turn/i);
   });
 
   it("shows score rows in the recap screen", () => {

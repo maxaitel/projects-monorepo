@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { LobbyScreen } from "@/components/game/lobby-screen";
@@ -9,15 +9,15 @@ import { RevealPhase } from "@/components/game/reveal-phase";
 import { SubmitPhase } from "@/components/game/submit-phase";
 import { ThreadView } from "@/components/game/thread-view";
 import { VotePhase } from "@/components/game/vote-phase";
+import { getAutoAdvanceDelayMs, getAutoStartDelayMs } from "@/domain/game/state-machine";
 import type { RoomView } from "@/lib/game/load-room";
 import { useRoomRealtime } from "@/lib/game/use-room-realtime";
 
 import {
-  advancePhaseAction,
+  advanceRoomFlowAction,
   castVoteAction,
   kickPlayerAction,
-  revealTurnAction,
-  startMatchAction,
+  startRoomFlowAction,
   submitMessageAction,
 } from "./actions";
 
@@ -31,6 +31,7 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
   const [votedSubmissionId, setVotedSubmissionId] = useState<string | null>(null);
   const [pendingSubmissionId, setPendingSubmissionId] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState(false);
+  const [autoAdvanceAttemptKey, setAutoAdvanceAttemptKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const refresh = useCallback(() => {
@@ -55,7 +56,7 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
   const hasVoted = initialRoom.hasVoted || votedSubmissionId !== null;
   const isActionPending = isPending || pendingAction;
 
-  function runAction(action: () => Promise<void>) {
+  const runAction = useCallback((action: () => Promise<void>) => {
     setError(null);
     setPendingAction(true);
     startTransition(() => {
@@ -67,33 +68,7 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
           setPendingAction(false);
         });
     });
-  }
-
-  function startMatch() {
-    const playerId = initialRoom.currentPlayerId;
-    if (!isHost || !playerId) {
-      setError("Only the host can start the game.");
-      return;
-    }
-
-    runAction(async () => {
-      await startMatchAction(initialRoom.code, initialRoom.roomId, playerId);
-      router.refresh();
-    });
-  }
-
-  function advancePhase() {
-    const playerId = initialRoom.currentPlayerId;
-    if (!isHost || !playerId) {
-      setError("Only the host can continue.");
-      return;
-    }
-
-    runAction(async () => {
-      await advancePhaseAction(initialRoom.code, initialRoom.roomId, playerId);
-      router.refresh();
-    });
-  }
+  }, [startTransition]);
 
   async function submitReply(reply: string) {
     if (!initialRoom.currentTurnId || !initialRoom.currentPlayerId) {
@@ -139,20 +114,6 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
     });
   }
 
-  function revealTurn() {
-    const turnId = initialRoom.currentTurnId;
-    const playerId = initialRoom.currentPlayerId;
-    if (!isHost || !turnId || !playerId) {
-      setError("Reveal is not available right now.");
-      return;
-    }
-
-    runAction(async () => {
-      await revealTurnAction(initialRoom.code, initialRoom.roomId, turnId, playerId);
-      router.refresh();
-    });
-  }
-
   function kickPlayer(playerId: string) {
     const hostPlayerId = initialRoom.currentPlayerId;
     if (!isHost || !hostPlayerId) {
@@ -165,6 +126,56 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
       router.refresh();
     });
   }
+
+  useEffect(() => {
+    if (isActionPending) {
+      return;
+    }
+
+    const autoFlow = getRoomAutoFlow(initialRoom);
+    if (autoFlow === null) {
+      return;
+    }
+    const delayMs = autoFlow.delayMs;
+
+    const attemptKey = [
+      initialRoom.roomId,
+      initialRoom.currentTurnId ?? "none",
+      initialRoom.phase,
+      initialRoom.phaseStartedAt ?? "none",
+      initialRoom.requiredSubmitterCount,
+      initialRoom.submittedCount,
+      initialRoom.requiredVoterCount,
+      initialRoom.votedCount,
+    ].join(":");
+
+    if (autoAdvanceAttemptKey === attemptKey) {
+      return;
+    }
+
+    const autoAction = autoFlow.action;
+    const timer = window.setTimeout(() => {
+      setAutoAdvanceAttemptKey(attemptKey);
+      runAction(async () => {
+        if (autoAction === "start") {
+          await startRoomFlowAction(initialRoom.code, initialRoom.roomId);
+        } else {
+          await advanceRoomFlowAction(initialRoom.code, initialRoom.roomId);
+        }
+        router.refresh();
+      });
+    }, delayMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    autoAdvanceAttemptKey,
+    initialRoom,
+    isActionPending,
+    router,
+    runAction,
+  ]);
 
   return (
     <main className="mx-auto grid min-h-dvh w-full max-w-6xl gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[minmax(0,1.2fr)_24rem] lg:py-12">
@@ -192,21 +203,11 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
         {phase === "lobby" ? (
           <LobbyScreen
             code={initialRoom.code}
-            isHost={isHost}
-            onStart={startMatch}
             players={initialRoom.players}
           />
         ) : null}
         {phase === "prompt" ? (
-          isHost ? (
-            <HostActionPanel
-              disabled={isActionPending || !initialRoom.currentPlayerId}
-              label="Open submissions"
-              onClick={advancePhase}
-            />
-          ) : (
-            <StatusPanel message="Waiting for host to open submissions." />
-          )
+          <StatusPanel message="Submissions open soon." />
         ) : null}
         {phase === "submit" ? (
           <>
@@ -218,13 +219,6 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
                 onSubmit={submitReply}
               />
             )}
-            {isHost ? (
-              <HostActionPanel
-                disabled={isActionPending || !initialRoom.currentPlayerId}
-                label="Open voting"
-                onClick={advancePhase}
-              />
-            ) : null}
           </>
         ) : null}
         {phase === "vote" ? (
@@ -242,15 +236,6 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
               votedSubmissionId={votedSubmissionId}
             />
             {hasVoted ? <StatusPanel message="Vote recorded. Waiting for the reveal." /> : null}
-            {isHost ? (
-              <HostActionPanel
-                disabled={
-                  isActionPending || !initialRoom.currentPlayerId || !initialRoom.currentTurnId
-                }
-                label="Reveal winner"
-                onClick={revealTurn}
-              />
-            ) : null}
           </>
         ) : null}
         {phase === "reveal" ? (
@@ -258,8 +243,6 @@ export function RoomClient({ initialRoom }: RoomClientProps) {
             <RevealPhase
               authorName={initialRoom.selectedSubmission.authorName}
               badges={initialRoom.selectedSubmission.badges}
-              isHost={isHost}
-              onContinue={advancePhase}
               winningBody={initialRoom.selectedSubmission.body}
             />
           ) : (
@@ -287,29 +270,6 @@ function SubmittedReplyNotice() {
     >
       <h2 className="text-base font-semibold">Reply submitted</h2>
       <p className="text-sm text-zinc-300">Waiting for the room to finish submitting.</p>
-    </section>
-  );
-}
-
-function HostActionPanel({
-  disabled,
-  label,
-  onClick,
-}: {
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <section className="grid w-full gap-3 rounded-lg border border-zinc-800 bg-zinc-900 p-4 text-zinc-50">
-      <button
-        className="inline-flex h-10 items-center justify-center rounded-md bg-cyan-400 px-4 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-        disabled={disabled}
-        onClick={onClick}
-        type="button"
-      >
-        {label}
-      </button>
     </section>
   );
 }
@@ -384,4 +344,31 @@ function RoomActionError({ message }: { message: string }) {
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Action failed. Try again.";
+}
+
+function getRoomAutoFlow(room: RoomView): { action: "start" | "advance"; delayMs: number } | null {
+  const snapshot = {
+    phase: room.phase,
+    phaseStartedAt: room.phaseStartedAt,
+    hostPlayerId: room.hostPlayerId ?? "",
+    connectedPlayerIds: createCountIds("player", room.connectedPlayerCount),
+    turnIndex: 0,
+    maxTurns: 1,
+    requiredSubmitterIds: createCountIds("submitter", room.requiredSubmitterCount),
+    submittedPlayerIds: createCountIds("submitter", room.submittedCount),
+    requiredVoterIds: createCountIds("voter", room.requiredVoterCount),
+    votedPlayerIds: createCountIds("voter", room.votedCount),
+  };
+
+  if (room.phase === "lobby") {
+    const delayMs = getAutoStartDelayMs(snapshot);
+    return delayMs === null ? null : { action: "start", delayMs };
+  }
+
+  const delayMs = getAutoAdvanceDelayMs(snapshot);
+  return delayMs === null ? null : { action: "advance", delayMs };
+}
+
+function createCountIds(prefix: string, count: number): string[] {
+  return Array.from({ length: Math.max(count, 0) }, (_, index) => `${prefix}-${index}`);
 }

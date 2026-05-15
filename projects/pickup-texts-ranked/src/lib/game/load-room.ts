@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { RoomPhase } from "@/domain/game/types";
+import type { RoomPhase, RoomSnapshot } from "@/domain/game/types";
 import type { Database } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,6 +10,7 @@ type RoomRow = {
   id: string;
   code: string;
   phase: RoomPhase;
+  phase_started_at: string | null;
   host_player_id: string | null;
   active_match_id: string | null;
 };
@@ -48,12 +49,18 @@ export type RoomView = {
   roomId: string;
   code: string;
   phase: RoomPhase;
+  phaseStartedAt: string | null;
   hostPlayerId: string | null;
   currentPlayerId: string | null;
   currentTurnId: string | null;
   hasSubmitted: boolean;
   currentPlayerSubmissionId: string | null;
   hasVoted: boolean;
+  connectedPlayerCount: number;
+  requiredSubmitterCount: number;
+  submittedCount: number;
+  requiredVoterCount: number;
+  votedCount: number;
   players: Array<{ id: string; name: string; score: number; isHost: boolean }>;
   messages: Array<{ id: string; side: "you" | "them"; body: string; badge?: string }>;
   submissions: Array<{ id: string; body: string; authorPlayerId: string | null; voteCount?: number }>;
@@ -73,6 +80,9 @@ type MapRoomViewRows = {
   turns: TurnRow[];
   submissions: SubmissionRow[];
   badges?: BadgeRow[];
+  requiredSubmitterIds?: string[];
+  submittedPlayerIds?: string[];
+  requiredVoterIds?: string[];
   votedPlayerIds?: string[];
 };
 
@@ -135,6 +145,7 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
     roomId: rows.room.id,
     code: rows.room.code,
     phase: rows.room.phase,
+    phaseStartedAt: rows.room.phase_started_at,
     hostPlayerId: rows.room.host_player_id,
     currentPlayerId,
     currentTurnId: latestTurn?.id ?? null,
@@ -142,6 +153,11 @@ export function mapRoomView(rows: MapRoomViewRows): RoomView {
     currentPlayerSubmissionId,
     hasVoted:
       currentPlayerId !== null && (rows.votedPlayerIds ?? []).includes(currentPlayerId),
+    connectedPlayerCount: rows.requiredSubmitterIds?.length ?? activePlayers.length,
+    requiredSubmitterCount: rows.requiredSubmitterIds?.length ?? 0,
+    submittedCount: rows.submittedPlayerIds?.length ?? 0,
+    requiredVoterCount: rows.requiredVoterIds?.length ?? 0,
+    votedCount: rows.votedPlayerIds?.length ?? 0,
     players,
     messages,
     submissions: rows.submissions.map((submission) => ({
@@ -176,7 +192,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
 
   const { data: room, error: roomError } = await supabase
     .from("rooms")
-    .select("id, code, phase, host_player_id, active_match_id")
+    .select("id, code, phase, host_player_id, active_match_id, updated_at")
     .eq("code", code)
     .maybeSingle();
 
@@ -200,6 +216,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
 
   const turns = await loadTurns(supabase, room.active_match_id ? String(room.active_match_id) : null);
   const latestTurn = turns.at(-1) ?? null;
+  const snapshot = await loadRoomSnapshot(supabase, String(room.id));
   const currentPlayerId =
     players?.find((player) => player.kicked_at === null && player.user_id === user?.id)?.id ?? null;
   const submissions = latestTurn
@@ -210,8 +227,6 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
       })
     : [];
   const badges = latestTurn ? await loadBadges(supabase, latestTurn.id) : [];
-  const votedPlayerIds =
-    room.active_match_id && currentPlayerId ? await loadVotedPlayerIds(supabase, String(room.id)) : [];
 
   return mapRoomView({
     currentUserId: user?.id ?? null,
@@ -219,6 +234,7 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
       id: String(room.id),
       code: String(room.code),
       phase: room.phase as RoomPhase,
+      phase_started_at: snapshot?.phaseStartedAt ?? String(room.updated_at),
       host_player_id: room.host_player_id ? String(room.host_player_id) : null,
       active_match_id: room.active_match_id ? String(room.active_match_id) : null,
     },
@@ -233,7 +249,10 @@ export async function loadRoomByCode(code: string): Promise<RoomView | null> {
     turns,
     submissions,
     badges,
-    votedPlayerIds,
+    requiredSubmitterIds: snapshot?.requiredSubmitterIds,
+    submittedPlayerIds: snapshot?.submittedPlayerIds,
+    requiredVoterIds: snapshot?.requiredVoterIds,
+    votedPlayerIds: snapshot?.votedPlayerIds,
   });
 }
 
@@ -377,14 +396,31 @@ async function loadCurrentPlayerSubmission(
   };
 }
 
-async function loadVotedPlayerIds(supabase: Supabase, roomId: string): Promise<string[]> {
+async function loadRoomSnapshot(supabase: Supabase, roomId: string): Promise<RoomSnapshot | null> {
   const { data, error } = await supabase.rpc("get_room_snapshot", { p_room_id: roomId });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return (data?.[0]?.voted_player_ids ?? []).map(String);
+  const row = data?.[0];
+  if (!row) {
+    return null;
+  }
+
+  return {
+    phase: row.phase as RoomPhase,
+    phaseStartedAt:
+      "phase_started_at" in row && row.phase_started_at ? String(row.phase_started_at) : null,
+    hostPlayerId: String(row.host_player_id),
+    connectedPlayerIds: (row.connected_player_ids ?? []).map(String),
+    turnIndex: Number(row.turn_index),
+    maxTurns: Number(row.max_turns),
+    requiredSubmitterIds: (row.connected_player_ids ?? []).map(String),
+    submittedPlayerIds: (row.submitted_player_ids ?? []).map(String),
+    requiredVoterIds: (row.eligible_voter_ids ?? []).map(String),
+    votedPlayerIds: (row.voted_player_ids ?? []).map(String),
+  };
 }
 
 function formatBadgeType(type: string): string {

@@ -10,6 +10,12 @@ export async function startMatchAction(code: string, roomId: string, playerId: s
   return result;
 }
 
+export async function startRoomFlowAction(code: string, roomId: string) {
+  const result = await actions.startRoomFlowAction(roomId);
+  revalidatePath(`/room/${code}`);
+  return result;
+}
+
 export async function submitMessageAction(
   code: string,
   turnId: string,
@@ -45,6 +51,12 @@ export async function revealTurnAction(
 
 export async function advancePhaseAction(code: string, roomId: string, playerId: string) {
   const result = await actions.advancePhaseAction(roomId, playerId);
+  revalidatePath(`/room/${code}`);
+  return result;
+}
+
+export async function advanceRoomFlowAction(code: string, roomId: string) {
+  const result = await actions.advanceRoomFlowAction(roomId);
   revalidatePath(`/room/${code}`);
   return result;
 }

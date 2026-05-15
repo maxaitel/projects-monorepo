@@ -72,6 +72,7 @@ export function createSupabaseGameRepository(supabase: Supabase): GameRepository
       const row = firstRow(data, "get_room_snapshot");
       return {
         phase: row.phase,
+        phaseStartedAt: row.phase_started_at,
         hostPlayerId: row.host_player_id,
         connectedPlayerIds: row.connected_player_ids,
         turnIndex: row.turn_index,

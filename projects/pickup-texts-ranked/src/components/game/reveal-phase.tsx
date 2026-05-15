@@ -1,21 +1,17 @@
 "use client";
 
-import { ArrowRight, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 
 type RevealPhaseProps = {
   winningBody: string;
   authorName: string;
   badges: string[];
-  isHost: boolean;
-  onContinue: () => void;
 };
 
 export function RevealPhase({
   winningBody,
   authorName,
   badges,
-  isHost,
-  onContinue,
 }: RevealPhaseProps) {
   return (
     <section className="bento-card grid w-full gap-6 p-6 sm:p-8">
@@ -47,20 +43,12 @@ export function RevealPhase({
         ) : null}
       </div>
 
-      {isHost ? (
-        <button
-          className="btn-primary mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-bold uppercase tracking-wide"
-          onClick={onContinue}
-          type="button"
-        >
-          Continue
-          <ArrowRight aria-hidden="true" size={18} strokeWidth={2.5} />
-        </button>
-      ) : (
-        <p className="mt-2 flex h-12 items-center justify-center rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80">
-          Waiting for host...
-        </p>
-      )}
+      <p
+        className="mt-2 flex h-12 items-center justify-center rounded-lg border border-[var(--border-color)] px-6 text-sm font-bold uppercase tracking-wide text-[var(--foreground)] opacity-80"
+        role="status"
+      >
+        Next turn soon
+      </p>
     </section>
   );
 }

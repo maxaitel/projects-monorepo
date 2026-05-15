@@ -20,7 +20,7 @@ export interface GameRepository {
   createRoom(input: { hostUserId: string; displayName: string }): Promise<CreatedRoom>;
   joinRoom(input: { code: string; userId: string; displayName: string }): Promise<JoinedRoom>;
   getRoomSnapshot(roomId: string): Promise<RoomSnapshot>;
-  startMatch(input: { roomId: string; hostPlayerId: string }): Promise<{ matchId: string; turnId: string }>;
+  startMatch(input: { roomId: string; hostPlayerId?: string }): Promise<{ matchId: string; turnId: string }>;
   submitMessage(input: {
     turnId: string;
     playerId: string;
@@ -34,7 +34,6 @@ export interface GameRepository {
   revealTurn(input: { turnId: string; hostPlayerId: string }): Promise<TurnResolution>;
   advancePhase(input: {
     roomId: string;
-    actorPlayerId: string;
     nextPhase: RoomPhase;
   }): Promise<{ phase: RoomPhase }>;
   kickPlayer(input: {

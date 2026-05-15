@@ -157,6 +157,7 @@ export interface Database {
         };
         Returns: {
           phase: Database["public"]["Enums"]["room_phase"];
+          phase_started_at: string;
           host_player_id: string;
           connected_player_ids: string[];
           turn_index: number;

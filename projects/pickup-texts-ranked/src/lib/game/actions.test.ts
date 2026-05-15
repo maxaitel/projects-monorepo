@@ -15,6 +15,7 @@ function createRepository(overrides: Partial<GameRepository> = {}): GameReposito
     joinRoom: vi.fn(),
     getRoomSnapshot: vi.fn().mockResolvedValue({
       phase: "lobby",
+      phaseStartedAt: "2026-05-14T00:00:00.000Z",
       hostPlayerId: "player-host",
       connectedPlayerIds: ["player-host", "player-two"],
       turnIndex: 0,
@@ -88,10 +89,84 @@ describe("createGameActions", () => {
     expect(repository.startMatch).not.toHaveBeenCalled();
   });
 
+  it("automatically starts a lobby match when enough players are present and the timer expires", async () => {
+    const startMatch = vi
+      .fn<GameRepository["startMatch"]>()
+      .mockResolvedValue({ matchId: "match-1", turnId: "turn-1" });
+    const repository = createRepository({
+      startMatch,
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "lobby",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host", "player-two"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host", "player-two"],
+        submittedPlayerIds: [],
+        requiredVoterIds: [],
+        votedPlayerIds: [],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-2" }));
+
+    await expect(
+      actions.startRoomFlow("room-1", new Date("2026-05-14T00:00:05.000Z")),
+    ).resolves.toEqual({ matchId: "match-1", turnId: "turn-1" });
+    expect(startMatch).toHaveBeenCalledWith({ roomId: "room-1" });
+  });
+
+  it("does not automatically start a lobby match before a second player joins", async () => {
+    const repository = createRepository({
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "lobby",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host"],
+        submittedPlayerIds: [],
+        requiredVoterIds: [],
+        votedPlayerIds: [],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-2" }));
+
+    await expect(
+      actions.startRoomFlow("room-1", new Date("2026-05-14T00:00:05.000Z")),
+    ).rejects.toThrow("Waiting for another player.");
+    expect(repository.startMatch).not.toHaveBeenCalled();
+  });
+
+  it("does not automatically start a lobby match before the timer expires", async () => {
+    const repository = createRepository({
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "lobby",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host", "player-two"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host", "player-two"],
+        submittedPlayerIds: [],
+        requiredVoterIds: [],
+        votedPlayerIds: [],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-2" }));
+
+    await expect(
+      actions.startRoomFlow("room-1", new Date("2026-05-14T00:00:01.000Z")),
+    ).rejects.toThrow("Waiting for the lobby timer.");
+    expect(repository.startMatch).not.toHaveBeenCalled();
+  });
+
   it("rejects reveal while eligible voters are still missing", async () => {
     const repository = createRepository({
       getRoomSnapshot: vi.fn().mockResolvedValue({
         phase: "vote",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
         hostPlayerId: "player-host",
         connectedPlayerIds: ["player-host", "player-two"],
         turnIndex: 0,
@@ -109,6 +184,54 @@ describe("createGameActions", () => {
     );
     expect(repository.getRoomSnapshot).toHaveBeenCalledWith("room-1");
     expect(repository.revealTurn).not.toHaveBeenCalled();
+  });
+
+  it("lets a room member trigger automatic phase advancement when submitters are done", async () => {
+    const advancePhase = vi.fn<GameRepository["advancePhase"]>().mockResolvedValue({ phase: "vote" });
+    const repository = createRepository({
+      advancePhase,
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "submit",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host", "player-two"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host", "player-two"],
+        submittedPlayerIds: ["player-host", "player-two"],
+        requiredVoterIds: ["player-host", "player-two"],
+        votedPlayerIds: [],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-2" }));
+
+    await expect(
+      actions.advanceRoomFlow("room-1", new Date("2026-05-14T00:00:01.000Z")),
+    ).resolves.toEqual({ phase: "vote" });
+    expect(advancePhase).toHaveBeenCalledWith({ roomId: "room-1", nextPhase: "vote" });
+  });
+
+  it("rejects automatic prompt advancement before the timer expires", async () => {
+    const repository = createRepository({
+      getRoomSnapshot: vi.fn().mockResolvedValue({
+        phase: "prompt",
+        phaseStartedAt: "2026-05-14T00:00:00.000Z",
+        hostPlayerId: "player-host",
+        connectedPlayerIds: ["player-host", "player-two"],
+        turnIndex: 0,
+        maxTurns: 3,
+        requiredSubmitterIds: ["player-host", "player-two"],
+        submittedPlayerIds: [],
+        requiredVoterIds: ["player-host", "player-two"],
+        votedPlayerIds: [],
+      }),
+    });
+    const actions = createGameActions(repository, async () => ({ id: "user-2" }));
+
+    await expect(
+      actions.advanceRoomFlow("room-1", new Date("2026-05-14T00:00:01.000Z")),
+    ).rejects.toThrow("Waiting for the prompt timer.");
+    expect(repository.advancePhase).not.toHaveBeenCalled();
   });
 
   it("rejects host self-kick", async () => {

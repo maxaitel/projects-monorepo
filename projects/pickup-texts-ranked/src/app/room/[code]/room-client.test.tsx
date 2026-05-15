@@ -7,10 +7,10 @@ import type { RoomView } from "@/lib/game/load-room";
 import { RoomClient } from "./room-client";
 
 const actionMocks = vi.hoisted(() => ({
-  advancePhaseAction: vi.fn(),
+  advanceRoomFlowAction: vi.fn(),
   castVoteAction: vi.fn(),
   kickPlayerAction: vi.fn(),
-  revealTurnAction: vi.fn(),
+  startRoomFlowAction: vi.fn(),
   startMatchAction: vi.fn(),
   submitMessageAction: vi.fn(),
 }));
@@ -32,6 +32,7 @@ function createRoom(overrides: Partial<RoomView> = {}): RoomView {
     roomId: "room-1",
     code: "ABCD",
     phase: "submit",
+    phaseStartedAt: "2999-01-01T00:00:00.000Z",
     hostPlayerId: "player-host",
     currentPlayerId: "player-current",
     currentTurnId: "turn-1",
@@ -48,6 +49,11 @@ function createRoom(overrides: Partial<RoomView> = {}): RoomView {
     hasSubmitted: false,
     currentPlayerSubmissionId: null,
     hasVoted: false,
+    connectedPlayerCount: 3,
+    requiredSubmitterCount: 3,
+    submittedCount: 0,
+    requiredVoterCount: 2,
+    votedCount: 0,
     ...overrides,
   };
 }
@@ -55,6 +61,7 @@ function createRoom(overrides: Partial<RoomView> = {}): RoomView {
 describe("RoomClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("shows a submitted waiting state instead of another submit form for the current player's submission", () => {
@@ -112,22 +119,22 @@ describe("RoomClient", () => {
     expect(within(voteSection).getByText("another player's reply stays visible")).toBeInTheDocument();
   });
 
-  it("starts the match through the room action for the host", async () => {
-    const user = userEvent.setup();
-
+  it("does not render a start game button and starts the match automatically from the lobby", async () => {
     render(
       <RoomClient
         initialRoom={createRoom({
           phase: "lobby",
+          phaseStartedAt: "2000-01-01T00:00:00.000Z",
           currentPlayerId: "player-host",
+          connectedPlayerCount: 3,
         })}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /start game/i }));
+    expect(screen.queryByRole("button", { name: /start game/i })).not.toBeInTheDocument();
 
     await waitFor(() =>
-      expect(actionMocks.startMatchAction).toHaveBeenCalledWith("ABCD", "room-1", "player-host"),
+      expect(actionMocks.startRoomFlowAction).toHaveBeenCalledWith("ABCD", "room-1"),
     );
   });
 
@@ -149,15 +156,31 @@ describe("RoomClient", () => {
     );
   });
 
-  it("lets the host open voting from the submitted waiting state", async () => {
-    const user = userEvent.setup();
+  it("does not render a manual open submissions button and opens submissions after the prompt timer", async () => {
+    render(
+      <RoomClient
+        initialRoom={createRoom({
+          phase: "prompt",
+          phaseStartedAt: "2000-01-01T00:00:00.000Z",
+        })}
+      />,
+    );
 
+    expect(screen.queryByRole("button", { name: /open submissions/i })).not.toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(actionMocks.advanceRoomFlowAction).toHaveBeenCalledWith("ABCD", "room-1"),
+    );
+  });
+
+  it("does not render a manual open voting button and advances when submissions are complete", async () => {
     render(
       <RoomClient
         initialRoom={createRoom({
           currentPlayerId: "player-host",
           hasSubmitted: true,
           currentPlayerSubmissionId: "submission-host",
+          submittedCount: 3,
           submissions: [
             {
               id: "submission-host",
@@ -170,11 +193,10 @@ describe("RoomClient", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent(/reply submitted/i);
-
-    await user.click(screen.getByRole("button", { name: /open voting/i }));
+    expect(screen.queryByRole("button", { name: /open voting/i })).not.toBeInTheDocument();
 
     await waitFor(() =>
-      expect(actionMocks.advancePhaseAction).toHaveBeenCalledWith("ABCD", "room-1", "player-host"),
+      expect(actionMocks.advanceRoomFlowAction).toHaveBeenCalledWith("ABCD", "room-1"),
     );
   });
 
@@ -209,15 +231,17 @@ describe("RoomClient", () => {
     expect(screen.getByRole("button", { name: /vote for reply 1/i })).toBeDisabled();
   });
 
-  it("surfaces a recoverable host reveal error when voting is not ready", async () => {
-    const user = userEvent.setup();
-    actionMocks.revealTurnAction.mockRejectedValueOnce(new Error("Waiting for voters."));
+  it("does not render a manual reveal button and surfaces automatic reveal errors", async () => {
+    actionMocks.advanceRoomFlowAction.mockRejectedValueOnce(new Error("Waiting for voters."));
 
     render(
       <RoomClient
         initialRoom={createRoom({
           phase: "vote",
+          phaseStartedAt: "2000-01-01T00:00:00.000Z",
           currentPlayerId: "player-host",
+          requiredVoterCount: 2,
+          votedCount: 1,
           submissions: [
             {
               id: "submission-other",
@@ -229,15 +253,10 @@ describe("RoomClient", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /reveal winner/i }));
+    expect(screen.queryByRole("button", { name: /reveal winner/i })).not.toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Waiting for voters."));
-    expect(actionMocks.revealTurnAction).toHaveBeenCalledWith(
-      "ABCD",
-      "room-1",
-      "turn-1",
-      "player-host",
-    );
+    expect(actionMocks.advanceRoomFlowAction).toHaveBeenCalledWith("ABCD", "room-1");
   });
 
   it("lets the host remove a missing non-host player", async () => {

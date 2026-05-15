@@ -22,6 +22,7 @@ describe("mapRoomView", () => {
         id: "room-1",
         code: "ABCD",
         phase: "submit",
+        phase_started_at: "2026-05-14T00:00:00.000Z",
         host_player_id: "player-host",
         active_match_id: "match-1",
       },
@@ -52,12 +53,17 @@ describe("mapRoomView", () => {
         },
       ],
       submissions: [],
+      requiredSubmitterIds: ["player-host", "player-two"],
+      submittedPlayerIds: [],
+      requiredVoterIds: [],
+      votedPlayerIds: [],
     });
 
     expect(room).toEqual({
       roomId: "room-1",
       code: "ABCD",
       phase: "submit",
+      phaseStartedAt: "2026-05-14T00:00:00.000Z",
       hostPlayerId: "player-host",
       currentPlayerId: "player-two",
       currentTurnId: "turn-1",
@@ -73,6 +79,11 @@ describe("mapRoomView", () => {
       hasSubmitted: false,
       currentPlayerSubmissionId: null,
       hasVoted: false,
+      connectedPlayerCount: 2,
+      requiredSubmitterCount: 2,
+      submittedCount: 0,
+      requiredVoterCount: 0,
+      votedCount: 0,
     });
   });
 
@@ -83,6 +94,7 @@ describe("mapRoomView", () => {
         id: "room-1",
         code: "ABCD",
         phase: "lobby",
+        phase_started_at: "2026-05-14T00:00:00.000Z",
         host_player_id: "player-host",
         active_match_id: null,
       },
@@ -122,6 +134,7 @@ describe("mapRoomView", () => {
         id: "room-1",
         code: "ABCD",
         phase: "vote",
+        phase_started_at: "2026-05-14T00:00:00.000Z",
         host_player_id: "player-host",
         active_match_id: "match-1",
       },
@@ -190,6 +203,7 @@ describe("mapRoomView", () => {
         id: "room-1",
         code: "ABCD",
         phase: "reveal",
+        phase_started_at: "2026-05-14T00:00:00.000Z",
         host_player_id: "player-host",
         active_match_id: "match-1",
       },

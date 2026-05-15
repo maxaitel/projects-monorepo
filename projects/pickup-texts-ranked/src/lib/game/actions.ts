@@ -1,4 +1,10 @@
-import { canAdvancePhase, getNextPhase, validateRoomAction } from "@/domain/game/state-machine";
+import {
+  canAdvancePhase,
+  canAutoAdvancePhase,
+  canAutoStartMatch,
+  getNextPhase,
+  validateRoomAction,
+} from "@/domain/game/state-machine";
 import type { RoomPhase } from "@/domain/game/types";
 
 import type { GameRepository } from "./repository";
@@ -43,6 +49,13 @@ export function createGameActions(repository: GameRepository, getCurrentUser: Ge
       return repository.startMatch({ roomId, hostPlayerId: actorPlayerId });
     },
 
+    async startRoomFlow(roomId: string, now = new Date()) {
+      const snapshot = await repository.getRoomSnapshot(roomId);
+      assertActionAllowed(canAutoStartMatch(snapshot, now));
+
+      return repository.startMatch({ roomId });
+    },
+
     async submitMessage(turnId: string, playerId: string, body: string) {
       return repository.submitMessage({
         turnId,
@@ -69,7 +82,15 @@ export function createGameActions(repository: GameRepository, getCurrentUser: Ge
       assertActionAllowed(canAdvancePhase(snapshot));
 
       const nextPhase = getNextPhase(snapshot.phase, snapshot);
-      return repository.advancePhase({ roomId, actorPlayerId, nextPhase });
+      return repository.advancePhase({ roomId, nextPhase });
+    },
+
+    async advanceRoomFlow(roomId: string, now = new Date()) {
+      const snapshot = await repository.getRoomSnapshot(roomId);
+      assertActionAllowed(canAutoAdvancePhase(snapshot, now));
+
+      const nextPhase = getNextPhase(snapshot.phase, snapshot);
+      return repository.advancePhase({ roomId, nextPhase });
     },
 
     async kickPlayer(roomId: string, actorPlayerId: string, playerId: string) {
@@ -103,6 +124,12 @@ export async function startMatchAction(roomId: string, actorPlayerId: string) {
   return (await createServerGameActions()).startMatch(roomId, actorPlayerId);
 }
 
+export async function startRoomFlowAction(roomId: string) {
+  "use server";
+
+  return (await createServerGameActions()).startRoomFlow(roomId);
+}
+
 export async function submitMessageAction(turnId: string, playerId: string, body: string) {
   "use server";
 
@@ -129,6 +156,12 @@ export async function advancePhaseAction(roomId: string, actorPlayerId: string) 
   "use server";
 
   return (await createServerGameActions()).advancePhase(roomId, actorPlayerId);
+}
+
+export async function advanceRoomFlowAction(roomId: string) {
+  "use server";
+
+  return (await createServerGameActions()).advanceRoomFlow(roomId);
 }
 
 export async function kickPlayerAction(roomId: string, actorPlayerId: string, playerId: string) {

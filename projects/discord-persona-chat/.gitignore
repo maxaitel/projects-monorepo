@@ -1,0 +1,10 @@
+.env
+.env.*
+!.env.example
+.next/
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
