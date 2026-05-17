@@ -1,0 +1,3 @@
+[submodule "projects/cs2-nodegraph"]
+	path = projects/cs2-nodegraph
+	url = https://github.com/maxaitel/cs2-nodegraph.git
