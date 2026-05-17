@@ -1,0 +1,17 @@
+{
+  "name": "media-to-gif",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "img2gif": "./bin/media-to-gif.js",
+    "media-to-gif": "./bin/media-to-gif.js"
+  },
+  "scripts": {
+    "start": "node ./bin/media-to-gif.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
