@@ -27,7 +27,7 @@ Then use it directly:
 img2gif gif.gif -c "shut down that computer boy"
 ```
 
-Create a top-caption GIF like the example:
+Create a top-caption GIF:
 
 ```bash
 img2gif input.mp4 billions.gif -c "Billions must love"
