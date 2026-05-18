@@ -1,0 +1,7 @@
+bison.jpg
+=========
+Title:   American bison (k5680-1)
+Source:  https://commons.wikimedia.org/wiki/File:American_bison_k5680-1.jpg
+Photo:   Jack Dykinga, USDA Agricultural Research Service
+License: Public domain (work of the U.S. federal government / USDA ARS).
+Notes:   Resized to 1800px wide for web delivery; original is 2700x1761.
