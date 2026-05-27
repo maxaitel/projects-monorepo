@@ -1,3 +1,6 @@
 [submodule "projects/cs2-nodegraph"]
 	path = projects/cs2-nodegraph
 	url = https://github.com/maxaitel/cs2-nodegraph.git
+[submodule "projects/slack-textmoji"]
+	path = projects/slack-textmoji
+	url = https://github.com/maxaitel/slack-textmoji.git
