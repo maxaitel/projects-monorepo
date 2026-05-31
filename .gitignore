@@ -5,6 +5,11 @@ node_modules/
 .next/
 dist/
 build/
+/output/
+/tmp/
+/temp/
+/projects/geog205-arcgis-output/
+/projects/prod223-mai65-vrlabs/
 .env
 .env.*
 !.env.example
