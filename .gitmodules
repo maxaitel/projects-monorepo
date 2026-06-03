@@ -4,3 +4,9 @@
 [submodule "projects/slack-textmoji"]
 	path = projects/slack-textmoji
 	url = https://github.com/maxaitel/slack-textmoji.git
+[submodule "projects/discord-gif-ocr-search"]
+	path = projects/discord-gif-ocr-search
+	url = https://github.com/maxaitel/discord-gif-ocr-search.git
+[submodule "projects/echo360-mp4-cli"]
+	path = projects/echo360-mp4-cli
+	url = https://github.com/maxaitel/echo360-mp4-cli.git
