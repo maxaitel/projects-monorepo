@@ -9,6 +9,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .torchaudio_compat import ensure_torchaudio
+
 
 @dataclass
 class OutputRecord:
@@ -34,6 +36,7 @@ class MisoRuntime:
         self._device: str | None = None
         self._dtype: str | None = None
         self._model_source: str | None = None
+        self._text_tokenizer_source: str | None = None
         self._load_lock = asyncio.Lock()
         self._generation_lock = asyncio.Lock()
         self._history: list[OutputRecord] = []
@@ -46,6 +49,7 @@ class MisoRuntime:
             "device": self._device,
             "dtype": self._dtype,
             "model_source": self._model_source,
+            "text_tokenizer_source": self._text_tokenizer_source,
             "sample_rate": getattr(self._generator, "sample_rate", None),
             "capabilities": [
                 "text_to_speech",
@@ -113,8 +117,12 @@ class MisoRuntime:
         os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "60")
         os.environ.setdefault("NO_TORCH_COMPILE", "1")
 
+        ensure_torchaudio()
+
+        import generator as miso_generator
         import torch
-        from generator import DEFAULT_MISO_TTS_REPO_ID, load_miso_8b
+
+        self._patch_text_tokenizer_loader(miso_generator)
 
         device = os.environ.get("MISO_DEVICE")
         if not device:
@@ -128,8 +136,8 @@ class MisoRuntime:
         except AttributeError as exc:
             raise ValueError(f"Unsupported MISO_DTYPE: {dtype_name}") from exc
 
-        model_source = os.environ.get("MISO_TTS_8B_MODEL", DEFAULT_MISO_TTS_REPO_ID)
-        self._generator = load_miso_8b(
+        model_source = os.environ.get("MISO_TTS_8B_MODEL", miso_generator.DEFAULT_MISO_TTS_REPO_ID)
+        self._generator = miso_generator.load_miso_8b(
             device=device,
             model_path_or_repo_id=model_source,
             dtype=dtype,
@@ -137,6 +145,45 @@ class MisoRuntime:
         self._device = device
         self._dtype = dtype_name
         self._model_source = model_source
+
+    def _patch_text_tokenizer_loader(self, miso_generator: Any) -> None:
+        primary = os.environ.get("MISO_TEXT_TOKENIZER_MODEL", "meta-llama/Llama-3.2-1B")
+        fallback = os.environ.get("MISO_TEXT_TOKENIZER_FALLBACK", "NousResearch/Llama-3.2-1B")
+        tokenizer_sources = [primary]
+        if fallback and fallback not in tokenizer_sources:
+            tokenizer_sources.append(fallback)
+
+        def load_llama3_tokenizer() -> Any:
+            from tokenizers.processors import TemplateProcessing
+            from transformers import AutoTokenizer
+
+            errors: list[str] = []
+            for tokenizer_name in tokenizer_sources:
+                try:
+                    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+                except Exception as exc:
+                    errors.append(f"{tokenizer_name}: {exc}")
+                    continue
+
+                bos = tokenizer.bos_token
+                eos = tokenizer.eos_token
+                tokenizer._tokenizer.post_processor = TemplateProcessing(
+                    single=f"{bos}:0 $A:0 {eos}:0",
+                    pair=f"{bos}:0 $A:0 {eos}:0 {bos}:1 $B:1 {eos}:1",
+                    special_tokens=[
+                        (f"{bos}", tokenizer.bos_token_id),
+                        (f"{eos}", tokenizer.eos_token_id),
+                    ],
+                )
+                self._text_tokenizer_source = tokenizer_name
+                return tokenizer
+
+            raise RuntimeError(
+                "Failed to load a Llama 3.2 compatible tokenizer. Tried: "
+                + "; ".join(errors)
+            )
+
+        miso_generator.load_llama3_tokenizer = load_llama3_tokenizer
 
     def _generate_sync(
         self,
@@ -148,6 +195,8 @@ class MisoRuntime:
         reference_audio_path: Path | None,
         reference_text: str | None,
     ) -> OutputRecord:
+        ensure_torchaudio()
+
         import torchaudio
         from generator import Segment
 
@@ -215,6 +264,8 @@ class MisoRuntime:
         temperature: float,
         topk: int,
     ) -> OutputRecord:
+        ensure_torchaudio()
+
         import torch
         import torchaudio
         from generator import Segment
@@ -271,6 +322,8 @@ class MisoRuntime:
         return record
 
     def _load_reference_audio(self, path: Path) -> Any:
+        ensure_torchaudio()
+
         import torchaudio
 
         assert self._generator is not None

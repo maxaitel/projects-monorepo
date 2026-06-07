@@ -166,6 +166,22 @@ label {
   width: auto;
 }
 
+.reference-source,
+.youtube-source,
+.clip-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.youtube-source {
+  border-top: 1px solid #d7dde3;
+  padding-top: 14px;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .turns {
   display: grid;
   gap: 12px;

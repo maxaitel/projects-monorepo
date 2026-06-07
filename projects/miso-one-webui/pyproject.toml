@@ -13,6 +13,11 @@ dependencies = [
   "uvicorn[standard]>=0.30,<1",
   "python-multipart>=0.0.9,<1",
   "pydantic>=2.7,<3",
+  "numpy>=1.24,<3",
+  "scipy>=1.11,<2",
+  "soundfile>=0.12,<1",
+  "yt-dlp>=2025.1.15",
+  "transformers>=4.49,<5",
   "miso-tts @ git+https://github.com/MisoLabsAI/MisoTTS.git@main",
 ]
 

@@ -5,6 +5,7 @@ __pycache__/
 
 data/uploads/
 data/outputs/
+data/test-outputs/
 data/*.json
 
 .DS_Store

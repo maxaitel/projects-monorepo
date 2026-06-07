@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Miso One WebUI</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
@@ -45,14 +46,39 @@
 
       <section id="clone" class="panel">
         <form id="cloneForm" class="form">
-          <label>
-            Reference audio
-            <input name="reference_audio" type="file" accept="audio/*" required />
-          </label>
+          <div class="reference-source">
+            <label>
+              Reference audio
+              <input name="reference_audio" type="file" accept="audio/*" />
+            </label>
+            <div class="youtube-source">
+              <label>
+                YouTube URL
+                <input id="youtubeUrl" name="youtube_url" type="url" placeholder="https://www.youtube.com/watch?v=..." />
+              </label>
+              <div class="grid compact-grid">
+                <label>Start seconds <input id="youtubeStart" name="start_seconds" type="number" min="0" step="0.1" value="0" /></label>
+                <label>Duration seconds <input id="youtubeDuration" name="duration_seconds" type="number" min="1" max="30" step="0.1" value="10" /></label>
+              </div>
+              <div class="row">
+                <button id="prepareYoutube" type="button">Load YouTube clip</button>
+                <span id="youtubeStatus" class="meta"></span>
+              </div>
+              <div id="youtubeClip" class="clip-preview" hidden>
+                <audio controls></audio>
+                <a class="download" download>Download clip</a>
+              </div>
+              <input id="preparedReferenceAudio" name="prepared_reference_audio" type="hidden" />
+            </div>
+          </div>
           <label>
             Reference transcript
             <textarea name="reference_text" rows="3" required></textarea>
           </label>
+          <div class="row">
+            <button id="transcribeReference" type="button">Transcribe reference</button>
+            <span id="transcriptStatus" class="meta"></span>
+          </div>
           <label>
             New text
             <textarea name="text" rows="5" required>This is the next sentence to synthesize.</textarea>
@@ -112,6 +138,6 @@
       </article>
     </template>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=4"></script>
   </body>
 </html>
