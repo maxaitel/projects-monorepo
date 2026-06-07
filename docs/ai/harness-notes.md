@@ -6,4 +6,4 @@ Keep notes short, actionable, and grounded in a lesson from recent work. Prefer 
 
 ## Approved Notes
 
-No approved fallback notes yet.
+- For visible Android app QA, avoid `Codex_QA_API35`; it uses a `google_atd` system image and can show a black emulator window/screenshot even when the UI tree says the app is focused. Use `Frigate_API_35` or `Remodex_QA_API35` with `-gpu host` for user-visible testing, and reserve `Codex_QA_API35` for headless UI-tree checks.
