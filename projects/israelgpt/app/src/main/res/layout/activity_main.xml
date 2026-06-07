@@ -1,234 +1,276 @@
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/page_bg"
-    android:fillViewport="true">
+    android:orientation="vertical">
 
-    <LinearLayout
+    <FrameLayout
+        android:id="@+id/headerPanel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:layout_height="178dp"
+        android:background="@drawable/header_background">
 
-        <TextView
-            android:id="@+id/titleText"
+        <ImageView
+            android:id="@+id/headerPattern"
             android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.52"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop"
+            android:src="@drawable/header_star_pattern" />
+
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_gravity="start|top"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="54dp"
+            android:importantForAccessibility="no"
+            android:padding="5dp"
+            android:src="@drawable/ic_menu" />
+
+        <ImageView
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_gravity="end|top"
+            android:layout_marginTop="54dp"
+            android:layout_marginEnd="24dp"
+            android:importantForAccessibility="no"
+            android:padding="5dp"
+            android:src="@drawable/ic_more_vertical" />
+
+        <ImageView
+            android:id="@+id/starIcon"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="38dp"
+            android:contentDescription="@string/star_description"
+            android:src="@drawable/ic_star_of_david" />
+
+        <LinearLayout
+            android:id="@+id/titleRow"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/screen_title"
-            android:textColor="@color/text_primary"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="112dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/titleIsraelText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/title_israel"
+                android:textColor="@color/text_primary"
+                android:textSize="34sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/titleGptText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/title_gpt"
+                android:textColor="@color/accent"
+                android:textSize="34sp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/subtitleText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:lineSpacingExtra="2dp"
+            android:layout_gravity="bottom"
+            android:gravity="center"
+            android:paddingStart="22dp"
+            android:paddingEnd="22dp"
+            android:paddingBottom="12dp"
             android:text="@string/screen_subtitle"
-            android:textColor="@color/text_secondary"
-            android:textSize="15sp" />
+            android:textColor="@color/text_muted"
+            android:textSize="12sp" />
+    </FrameLayout>
 
-        <LinearLayout
-            android:id="@+id/researchPanel"
-            android:layout_width="match_parent"
+    <LinearLayout
+        android:id="@+id/statusStrip"
+        android:layout_width="match_parent"
+        android:layout_height="66dp"
+        android:background="@drawable/status_bar_background"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="20dp"
+        android:paddingEnd="18dp">
+
+        <TextView
+            android:id="@+id/statusDot"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:background="@drawable/panel_background"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:includeFontPadding="false"
+            android:text="@string/status_dot"
+            android:textColor="@color/amber"
+            android:textSize="26sp" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/status_label"
-                android:textColor="@color/amber"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/researchText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:lineSpacingExtra="3dp"
-                android:text="@string/research_body"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:text="@string/sources_label"
-                android:textColor="@color/accent"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/sourcesText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:lineSpacingExtra="2dp"
-                android:text="@string/sources_body"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/generatorPanel"
-            android:layout_width="match_parent"
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/panel_background"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:singleLine="true"
+            android:text="@string/status_checking"
+            android:textColor="@color/amber"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/generator_label"
-                android:textColor="@color/text_primary"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+        <EditText
+            android:id="@+id/modelInput"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/model_chip_background"
+            android:gravity="center"
+            android:hint="@string/model_hint"
+            android:imeOptions="actionNext"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:singleLine="true"
+            android:text="@string/model_hint"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="12sp"
+            android:visibility="gone" />
 
-            <EditText
-                android:id="@+id/categoryInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:autofillHints=""
-                android:background="@drawable/input_background"
-                android:hint="@string/category_hint"
-                android:imeOptions="actionNext"
-                android:inputType="textCapSentences"
-                android:minHeight="48dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="15sp" />
+        <ImageView
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/status_pill"
+            android:importantForAccessibility="no"
+            android:padding="8dp"
+            android:src="@drawable/ic_plug" />
+    </LinearLayout>
 
-            <EditText
-                android:id="@+id/constraintInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:autofillHints=""
-                android:background="@drawable/input_background"
-                android:hint="@string/constraint_hint"
-                android:imeOptions="actionNext"
-                android:inputType="textCapSentences"
-                android:minHeight="48dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="15sp" />
+    <LinearLayout
+        android:id="@+id/transcriptPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@drawable/terminal_background"
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="12dp">
 
-            <EditText
-                android:id="@+id/resultInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:autofillHints=""
-                android:background="@drawable/input_background"
-                android:hint="@string/result_hint"
-                android:imeOptions="actionDone"
-                android:inputType="textCapWords"
-                android:minHeight="48dp"
-                android:singleLine="true"
-                android:textColor="@color/text_primary"
-                android:textColorHint="@color/text_secondary"
-                android:textSize="15sp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/generateButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_primary"
-                    android:text="@string/generate"
-                    android:textAllCaps="false"
-                    android:textColor="@color/page_bg"
-                    android:textStyle="bold" />
-
-                <Button
-                    android:id="@+id/randomButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:text="@string/randomize"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/outputPanel"
+        <ScrollView
+            android:id="@+id/transcriptScroll"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/terminal_background"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls"
+            android:paddingBottom="10dp">
 
             <TextView
+                android:id="@+id/transcriptText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/output_label"
-                android:textColor="@color/accent"
-                android:textSize="13sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/outputText"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
                 android:fontFamily="monospace"
-                android:lineSpacingExtra="3dp"
+                android:lineSpacingExtra="5dp"
+                android:text="@string/transcript_empty"
                 android:textColor="@color/text_primary"
                 android:textIsSelectable="true"
                 android:textSize="15sp" />
+        </ScrollView>
+    </LinearLayout>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:orientation="horizontal">
+    <LinearLayout
+        android:id="@+id/composerPanel"
+        android:layout_width="match_parent"
+        android:layout_height="196dp"
+        android:background="@drawable/composer_background"
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="14dp">
 
-                <Button
-                    android:id="@+id/copyButton"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:text="@string/copy"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textStyle="bold" />
+        <EditText
+            android:id="@+id/promptInput"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:background="@drawable/input_background"
+            android:gravity="center_vertical|start"
+            android:hint="@string/prompt_hint"
+            android:imeOptions="actionSend"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine|textCapSentences"
+            android:maxLines="3"
+            android:minLines="1"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="16sp" />
 
-                <Button
-                    android:id="@+id/shareButton"
-                    android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="10dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:text="@string/share"
-                    android:textAllCaps="false"
-                    android:textColor="@color/text_primary"
-                    android:textStyle="bold" />
-            </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            tools:ignore="ButtonStyle">
+
+            <Button
+                android:id="@+id/askButton"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_weight="1.12"
+                android:background="@drawable/button_primary"
+                android:drawableStart="@drawable/ic_send"
+                android:drawablePadding="8dp"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/ask"
+                android:textAllCaps="false"
+                android:textColor="@color/page_bg"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/clearButton"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_secondary"
+                android:drawableStart="@drawable/ic_trash"
+                android:drawablePadding="8dp"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/clear"
+                android:textAllCaps="false"
+                android:textColor="@color/amber"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/copyButton"
+                android:layout_width="0dp"
+                android:layout_height="58dp"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:background="@drawable/button_secondary"
+                android:drawableStart="@drawable/ic_copy"
+                android:drawablePadding="8dp"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/copy"
+                android:textAllCaps="false"
+                android:textColor="@color/amber"
+                android:textSize="16sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
-</ScrollView>
+</LinearLayout>

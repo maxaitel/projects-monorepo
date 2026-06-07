@@ -4,21 +4,61 @@ This is a small native Android prototype for the user-requested `isrealgpt` idea
 
 ## What It Is
 
-The app is a local parody/meme generator with a short research brief. It does not connect to OpenAI, `israelgpt.org`, or any hosted language model.
+The app is an unofficial, satirical Android chat terminal for a local Ollama server. It does not connect to OpenAI, `israelgpt.org`, or any hosted language model.
 
-Research checked on June 7, 2026:
+The current build targets:
 
-- Know Your Meme describes IsraelGPT as a 2025 X/Twitter phrasal-template meme where users prompt a make-believe ChatGPT variant to generate disliked media, teams, genres, or products.
-- `israelgpt.org` visibly presents "ISRAEL GPT" and "INTELLIGENCE TERMINAL", but I did not find enough public context to treat it as an established service.
-- Scamadviser and Gridinsoft-style reputation pages describe `israelgpt.org` as a young domain and advise caution or verification.
+```text
+http://100.116.25.114:11434
+```
+
+The app calls Ollama's `/api/tags` endpoint to check connectivity and `/api/chat` to send prompts. The model currently defaults to `llama3.2`.
+
+## Persona
+
+Requests are sent with a built-in system persona named IsraelGPT. The persona is a concise, deadpan terminal voice that can be satirical when the prompt invites it. It is explicitly instructed not to claim official status, impersonate a government or real organization, invent live intelligence/private sources, or help with hate, harassment, dehumanization, demographic-targeted political persuasion, or harm.
 
 ## What Works
 
 - Runs as a single-screen native Android app.
-- Generates IsraelGPT-style parody text fully on device.
-- Lets the user edit the category, constraint, and generated result name.
-- Supports random prompt filling, copy, and Android share sheet.
-- Includes no ads, accounts, analytics, network calls, or API keys.
+- Shows a Star of David header emblem and matching launcher foreground detail.
+- Checks whether the configured Ollama server is reachable.
+- Sends chat prompts to `http://100.116.25.114:11434/api/chat`.
+- Uses `llama3.2` as the default Ollama model.
+- Preserves the visible transcript through rotation.
+- Supports Clear and Copy actions.
+
+## External Requirements
+
+A fresh clone can build the APK, but chat responses require external state:
+
+- The Android device or emulator must be able to reach `100.116.25.114`.
+- Ollama must be running on that host and listening on port `11434`.
+- The selected model, default `llama3.2`, must be installed on that Ollama machine.
+- The Ollama server must allow connections from the Android device or emulator.
+
+For a LAN/Tailscale-style Ollama host, that usually means starting Ollama with a reachable bind address, for example:
+
+```sh
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+```
+
+Then confirm the model exists:
+
+```sh
+ollama list
+ollama pull llama3.2
+```
+
+## Design Mockup
+
+The UI direction was mocked with the built-in Codex `imagegen` tool and saved here:
+
+```text
+docs/design/israelgpt-ui-mockup.png
+```
+
+The implementation translates that mockup into native XML resources rather than using the mockup image as a runtime asset.
 
 ## Build
 
@@ -42,15 +82,15 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Verification
 
-I verified this as a prototype with:
+Run:
 
 ```sh
 ./gradlew :app:assembleDebug
 ./gradlew :app:lintDebug
 ```
 
-I also installed and launched the debug APK on the local `Codex_QA_API35` emulator. UI-tree checks confirmed the title, research panel, generator fields, output text, Random action, and scrolled Copy/Share buttons were present. The emulator crash buffer was empty after interaction. This repository does not include Play Store packaging.
+Live chat verification requires a reachable Ollama server at `100.116.25.114:11434` with the selected model installed.
 
 ## Limits
 
-This is not a production app. It is an experiment/prototype that captures the researched meme format and provides a small usable Android surface. It has no moderation service, no backend persistence, and no claim of being an official AI product.
+This is not a production app. It is an experiment/prototype with a hardcoded Ollama base URL, no account system, no backend persistence, no production moderation service, and no claim of being an official AI product.

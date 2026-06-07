@@ -1,0 +1,4 @@
+interface:
+  display_name: "Small CLI Packager"
+  short_description: "Build small CLIs with tests and truthful packaging"
+  default_prompt: "Use $small-cli-packager to build a focused command-line utility with safe defaults, tests, README, ignored generated outputs, and monorepo/public-repo packaging as appropriate."
