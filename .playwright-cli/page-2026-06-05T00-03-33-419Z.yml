@@ -1,0 +1,21 @@
+- main [ref=e2]:
+  - region "Leaderboard" [ref=e3]:
+    - region "Top pilots" [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - paragraph [ref=e7]: Orbital Records
+          - heading "Leaderboard" [level=2] [ref=e8]
+        - button "Back to Game" [ref=e9] [cursor=pointer]
+      - search [ref=e10]:
+        - generic [ref=e11]: Find a Pilot
+        - searchbox "Find a Pilot" [ref=e12]
+        - paragraph [ref=e13]
+      - heading "Top Pilots" [level=3] [ref=e15]
+      - table "Top 30 players" [ref=e16]:
+        - row "Rank Pilot High Score Games" [ref=e17]:
+          - generic [ref=e18]: Rank
+          - generic [ref=e19]: Pilot
+          - generic [ref=e20]: High Score
+          - generic [ref=e21]: Games
+        - paragraph [ref=e23]: Loading top pilots...
+      - paragraph [ref=e24]: Complete all five levels to submit a score.

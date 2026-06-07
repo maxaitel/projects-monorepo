@@ -1,0 +1,14 @@
+<resources>
+    <color name="page_bg">#101314</color>
+    <color name="panel_bg">#181D1E</color>
+    <color name="panel_alt">#0C1011</color>
+    <color name="field_bg">#111617</color>
+    <color name="text_primary">#F3F5F2</color>
+    <color name="text_secondary">#B8C1BC</color>
+    <color name="accent">#59D98E</color>
+    <color name="accent_pressed">#43B976</color>
+    <color name="amber">#FFD166</color>
+    <color name="border">#31403A</color>
+    <color name="border_strong">#62D699</color>
+    <color name="icon_background">#0F1714</color>
+</resources>

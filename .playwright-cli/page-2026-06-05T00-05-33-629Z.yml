@@ -1,0 +1,8 @@
+- main [ref=e2]:
+  - generic "Time to Fly game canvas" [ref=e25]
+  - generic:
+    - generic: Level 01
+    - generic:
+      - generic: Use the gravity assist
+      - button "Launch" [ref=e26] [cursor=pointer]
+      - button "Restart" [ref=e27] [cursor=pointer]

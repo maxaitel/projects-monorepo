@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">IsraelGPT</string>
+    <string name="screen_title">IsraelGPT Terminal</string>
+    <string name="screen_subtitle">A local parody generator based on the researched meme, not an AI model.</string>
+    <string name="status_label">Research brief</string>
+    <string name="research_body">Public references mostly describe IsraelGPT as a 2025 X/Twitter phrasal-template meme. The joke frames a pretend ChatGPT variant that generates a disliked media item, team, genre, or product. A newer israelgpt.org site presents itself as an intelligence terminal, but public safety/reputation pages show it as a young domain with limited context. This prototype does not call that site, OpenAI, or any LLM.</string>
+    <string name="sources_label">Sources checked</string>
+    <string name="sources_body">Know Your Meme: IsraelGPT meme entry. israelgpt.org: visible site title and terminal framing. Scamadviser/Gridinsoft: domain age and caution signals.</string>
+    <string name="generator_label">Generator</string>
+    <string name="category_hint">album, game, team, startup name</string>
+    <string name="constraint_hint">people will debate forever</string>
+    <string name="result_hint">The result name</string>
+    <string name="generate">Generate</string>
+    <string name="randomize">Random</string>
+    <string name="copy">Copy</string>
+    <string name="share">Share</string>
+    <string name="output_label">Output</string>
+    <string name="copy_done">Copied</string>
+    <string name="copy_failed">Copy unavailable</string>
+    <string name="share_title">Share IsraelGPT text</string>
+</resources>

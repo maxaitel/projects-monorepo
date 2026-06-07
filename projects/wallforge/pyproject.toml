@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wallforge"
+version = "0.1.0"
+description = "Procedural CLI for high-resolution Mac and phone wallpapers."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=2",
+  "Pillow>=10",
+]
+
+[project.scripts]
+wallforge = "wallforge.cli:main"
+
+[tool.setuptools]
+packages = ["wallforge"]

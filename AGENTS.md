@@ -11,6 +11,7 @@ This repository is `projects-monorepo`, a public GitHub monorepo for many projec
 - Prefer Go for simple CLI tools, Python for data-related stuff/potential large-scale projects, but use your judgement to choose the true best language for a project.
 - Treat `main` as the production branch. When the user says to push to `main`, that means ship it to production: merge or commit to `main`, push `main` to GitHub, and deploy the affected Vercel project to production.
 - If `main` is empty or close to empty, build directly on `main` or merge fast instead of over-managing branches.
+- Additional approved harness notes live in `docs/ai/harness-notes.md`.
 
 ## Truth In Packaging
 
