@@ -1,0 +1,30 @@
+{
+  "name": "territorial-bot-lab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first browser instrumentation and bot harness for Territorial.io experiments.",
+  "type": "module",
+  "bin": {
+    "ttbot": "./src/cli.js"
+  },
+  "scripts": {
+    "analyze": "node ./src/cli.js analyze",
+    "bot": "node ./src/cli.js bot",
+    "evaluate": "node ./src/cli.js evaluate",
+    "evaluate-action-policy": "node ./src/cli.js evaluate-action-policy",
+    "evaluate-outcome-policy": "node ./src/cli.js evaluate-outcome-policy",
+    "lobby-probe": "node ./src/cli.js lobby-probe",
+    "lobby-watch": "node ./src/cli.js lobby-watch",
+    "probe": "node ./src/cli.js probe",
+    "record": "node ./src/cli.js record",
+    "train-action-policy": "node ./src/cli.js train-action-policy",
+    "train-outcome-policy": "node ./src/cli.js train-outcome-policy",
+    "train-policy": "node ./src/cli.js train-policy",
+    "test": "node --test",
+    "tune": "node ./src/cli.js tune"
+  },
+  "dependencies": {
+    "playwright": "^1.54.0"
+  },
+  "devDependencies": {}
+}
