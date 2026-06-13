@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Codex Usage Observatory</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Dashboard navigation">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img">
+              <path d="M8.5 4.5 3 10l5.5 5.5" />
+              <path d="M15.5 4.5 21 10l-5.5 5.5" />
+              <path d="m13.5 3-3 18" />
+            </svg>
+          </div>
+          <div>
+            <p class="brand-title">Codex Usage Observatory</p>
+            <p class="brand-subtitle">Local session telemetry</p>
+          </div>
+        </div>
+
+        <nav class="side-nav">
+          <button class="nav-item is-active" data-target="history">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 8v5l3 2" /><path d="M3.05 11A9 9 0 1 1 5.64 17.36" /><path d="M3 17h3v-3" /></svg>
+            </span>
+            History
+          </button>
+          <button class="nav-item" data-target="insights">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M9 18h6" /><path d="M10 22h4" /><path d="M8.5 14.5A6 6 0 1 1 15.5 14.5c-.9.6-1.5 1.5-1.5 2.5h-4c0-1-.6-1.9-1.5-2.5Z" /></svg>
+            </span>
+            Insights
+          </button>
+          <button class="nav-item" data-target="threads">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 6h16" /><path d="M4 12h12" /><path d="M4 18h8" /><path d="M18 14v6" /><path d="M15 17h6" /></svg>
+            </span>
+            Threads
+          </button>
+          <button class="nav-item" data-target="limits">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6l-8-3Z" /><path d="M9 12l2 2 4-5" /></svg>
+            </span>
+            Limits
+          </button>
+        </nav>
+
+        <div class="sidebar-foot">
+          <div>
+            <span class="meta-label">Environment</span>
+            <strong id="environmentLabel">Local</strong>
+          </div>
+          <div>
+            <span class="meta-label">Dataset</span>
+            <strong id="datasetLabel">Loading</strong>
+          </div>
+          <div>
+            <span class="meta-label">Version</span>
+            <strong>0.1.0-local</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="title-block">
+            <h1>Codex Usage Observatory</h1>
+            <p id="rangeSummary">Parsing local Codex token history.</p>
+          </div>
+          <div class="topbar-meta" aria-label="Dataset status">
+            <span class="status-dot"></span>
+            <span id="sourceLabel">Local data</span>
+            <span id="updatedLabel">Updated just now</span>
+            <span id="timezoneLabel">Local timezone</span>
+          </div>
+        </header>
+
+        <section class="control-row" aria-label="Dashboard controls">
+          <div class="segmented-control" role="group" aria-label="Time range">
+            <button class="range-button is-active" data-days="7">7D</button>
+            <button class="range-button" data-days="30">30D</button>
+            <button class="range-button" data-days="all">All</button>
+          </div>
+          <label class="filter-control">
+            <span>Thread filter</span>
+            <input id="threadFilter" type="search" placeholder="Search titles or IDs" autocomplete="off" />
+          </label>
+          <button id="privacyToggle" class="icon-button" type="button" aria-pressed="false" title="Toggle thread title visibility">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+            <span>Hide titles</span>
+          </button>
+        </section>
+
+        <section id="sampleBanner" class="data-banner" hidden>
+          Sample data is showing. Run <code>npm run generate</code> in this project to create a local <code>src/generatedUsage.js</code> from your Codex logs.
+        </section>
+
+        <section id="history" class="kpi-grid" aria-label="Token usage summary"></section>
+
+        <section class="dashboard-grid">
+          <article class="panel panel-wide">
+            <div class="panel-header">
+              <div>
+                <h2>Daily Token Volume</h2>
+                <p id="dailyChartCaption">Input, cached input, output, and total tokens over time.</p>
+              </div>
+              <div id="lineLegend" class="legend"></div>
+            </div>
+            <div id="dailyChart" class="chart-box" role="img" aria-label="Daily token volume chart"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Token Composition</h2>
+                <p>Cached input is shown as the reusable part of input tokens.</p>
+              </div>
+            </div>
+            <div id="compositionChart" class="composition-layout"></div>
+          </article>
+
+          <article id="limits" class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Rate Limit Pressure</h2>
+                <p>Peak and latest limit snapshots when present in logs.</p>
+              </div>
+            </div>
+            <div id="limitGauge" class="gauge-layout"></div>
+          </article>
+
+          <article id="threads" class="panel panel-table">
+            <div class="panel-header">
+              <div>
+                <h2>Busiest Threads</h2>
+                <p>Ranked by cumulative token totals from each session.</p>
+              </div>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Thread</th>
+                    <th>Requests</th>
+                    <th>Total</th>
+                    <th>Input</th>
+                    <th>Output</th>
+                    <th>Cached</th>
+                  </tr>
+                </thead>
+                <tbody id="threadTable"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Usage Heatmap</h2>
+                <p>Local weekday and hour concentration for the selected range.</p>
+              </div>
+            </div>
+            <div id="heatmap" class="heatmap-wrap"></div>
+          </article>
+
+          <article id="insights" class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>Insights</h2>
+                <p>Computed from aggregate token events only.</p>
+              </div>
+            </div>
+            <div id="insightList" class="insight-list"></div>
+          </article>
+        </section>
+
+        <section class="quality-strip" aria-label="Data quality">
+          <div>
+            <span class="meta-label">Files scanned</span>
+            <strong id="filesScanned">0</strong>
+          </div>
+          <div>
+            <span class="meta-label">Token events</span>
+            <strong id="eventsScanned">0</strong>
+          </div>
+          <div>
+            <span class="meta-label">Threads with usage</span>
+            <strong id="threadsScanned">0</strong>
+          </div>
+          <div>
+            <span class="meta-label">Data caveat</span>
+            <strong id="dataCaveat">Aggregates only</strong>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./src/sampleUsage.js"></script>
+    <script src="./src/generatedUsage.js"></script>
+    <script src="./src/app.js"></script>
+  </body>
+</html>

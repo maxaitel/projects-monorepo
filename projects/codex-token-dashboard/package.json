@@ -1,0 +1,13 @@
+{
+  "name": "codex-token-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Static local dashboard for Codex token usage history parsed from local Codex session logs.",
+  "scripts": {
+    "generate": "node scripts/generate-usage.js",
+    "dev": "npm run generate && node scripts/serve.js",
+    "start": "npm run generate && node scripts/serve.js",
+    "test": "node scripts/generate-usage.js --codex-home fixtures/codex-home --out tmp/codex-token-dashboard-fixture.js && node scripts/smoke-test.js tmp/codex-token-dashboard-fixture.js"
+  }
+}
